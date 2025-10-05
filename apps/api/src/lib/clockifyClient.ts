@@ -172,6 +172,30 @@ export class ClockifyClient {
       path: `/workspaces/${workspaceId}/addons/${addonId}/webhooks/${webhookId}`
     });
   }
+
+  async getDetailedReport(
+    workspaceId: string, 
+    body: {
+      dateRangeStart: string;
+      dateRangeEnd: string;
+      users?: { ids: string[] };
+      exportType: string;
+      hydrate?: boolean;
+      page?: number;
+      pageSize?: number;
+    },
+    correlationId?: string
+  ) {
+    return this.request<{
+      timeEntries: Array<{ id: string; [key: string]: unknown }>;
+      totals: Array<{ [key: string]: unknown }>;
+    }>({
+      method: 'POST',
+      path: `/workspaces/${workspaceId}/reports/detailed`,
+      body,
+      correlationId
+    });
+  }
 }
 
 export const clockifyClient = new ClockifyClient();
