@@ -7,7 +7,7 @@ import backfillRoutes from './backfill.js';
 import authRoutes from './auth.js';
 import runsRoutes from './runs.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.use('/sites', healthRoutes);
 router.use('/webhooks', webhookRoutes);

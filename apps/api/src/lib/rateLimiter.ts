@@ -7,7 +7,7 @@ const jitter = (base: number) => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-type Task<T> = {
+type Task<T = unknown> = {
   fn: () => Promise<T>;
   resolve: (value: T | PromiseLike<T>) => void;
   reject: (reason?: unknown) => void;
@@ -30,7 +30,7 @@ export class RateLimiter {
 
   schedule<T>(fn: () => Promise<T>, attempt = 0): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.queue.push({ fn, resolve, reject, attempt });
+      this.queue.push({ fn, resolve: resolve as any, reject, attempt });
       this.run();
     });
   }

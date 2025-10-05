@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getRuns } from '../controllers/runController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/', getRuns);
 

@@ -40,7 +40,7 @@ const extractTimeEntryPayload = (body: unknown) => {
 
 export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => {
   try {
-    const rawBody = req.rawBody ?? JSON.stringify(req.body ?? {});
+    const rawBody = (req as any).rawBody ?? JSON.stringify(req.body ?? {});
     const signature = req.header('x-clockify-signature');
     if (!verifyClockifySignature(rawBody, signature)) {
       return res.status(401).json({ error: 'Invalid webhook signature' });
@@ -88,11 +88,14 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       logger.warn({ event, workspaceId }, 'Received event for mismatched workspace');
     }
 
-    const correlationId = req.correlationId;
+    const correlationId = (req as any).correlationId;
 
     const start = performance.now();
     const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId);
-    const beforeHash = hashCustomFieldValues(liveEntry.customFieldValues ?? []);
+    const beforeHash = hashCustomFieldValues((liveEntry.customFieldValues ?? []).map(cf => ({ 
+      customFieldId: cf.customFieldId, 
+      value: cf.value ?? null 
+    })));
 
     const { formulas, dictionaries } = await fetchFormulaEngineInputs(workspaceId);
     const engine = new FormulaEngine(dictionaries);
@@ -118,7 +121,10 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
     }
 
     const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId);
-    const latestHash = hashCustomFieldValues(latest.customFieldValues ?? []);
+    const latestHash = hashCustomFieldValues((latest.customFieldValues ?? []).map(cf => ({ 
+      customFieldId: cf.customFieldId, 
+      value: cf.value ?? null 
+    })));
     if (latestHash !== beforeHash) {
       await recordRun({
         entryId: liveEntry.id,

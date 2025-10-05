@@ -48,8 +48,7 @@ const parser = new Parser({
   operators: {
     logical: true,
     comparison: true,
-    conditional: true,
-    pow: true
+    conditional: true
   }
 });
 
@@ -255,7 +254,7 @@ export class FormulaEngine {
 
       let value: unknown;
       try {
-        value = expr.evaluate(scope);
+        value = expr.evaluate(scope as any);
       } catch (error) {
         diagnostics.push({
           fieldKey: formula.fieldKey,

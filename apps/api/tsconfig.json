@@ -7,6 +7,6 @@
     "incremental": true,
     "composite": true
   },
-  "include": ["src"],
+  "include": ["src", "src/types"],
   "exclude": ["dist", "node_modules"]
 }

@@ -48,7 +48,7 @@ export const ensureSchema = async () => {
   await schemaCheckPromise;
 };
 
-export const withTransaction = async <T>(fn: (client: PoolClient) => Promise<T>): Promise<T> => {
+export const withTransaction = async <T>(fn: (client: any) => Promise<T>): Promise<T> => {
   const db = getDb();
   const client = await db.connect();
   try {

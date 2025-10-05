@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { executeBackfill } from '../controllers/backfillController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.post('/', executeBackfill);
 

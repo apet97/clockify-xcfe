@@ -5,7 +5,7 @@ import {
   removeDictionaryHandler
 } from '../controllers/formulaController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/', getDictionaries);
 router.post('/', upsertDictionaryHandler);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getFormulas, postFormula, putFormula, removeFormula } from '../controllers/formulaController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/', getFormulas);
 router.post('/', postFormula);

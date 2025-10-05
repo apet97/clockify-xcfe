@@ -21,9 +21,9 @@ vi.mock('@api/lib/clockifyClient.js', () => ({
   }
 }));
 
-const markdown = readFileSync('clockify-xcfe/docs/Clockify_Webhook_JSON_Samples (1).md', 'utf8');
+const markdown = readFileSync('docs/Clockify_Webhook_JSON_Samples (1).md', 'utf8');
 const extractSample = (section: string) => {
-  const regex = new RegExp(`## ${section}\\n\\`{3}json\\n([\\s\\S]*?)\\n\\`{3}`, 'm');
+  const regex = new RegExp(`## ${section}\\n\`\`\`json\\n([\\s\\S]*?)\\n\`\`\``, 'm');
   const match = regex.exec(markdown);
   if (!match) {
     throw new Error(`Sample ${section} not found`);

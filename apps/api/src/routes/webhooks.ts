@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { clockifyWebhookHandler } from '../controllers/webhookController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.post('/clockify', clockifyWebhookHandler);
 

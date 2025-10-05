@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { createMagicLink } from '../controllers/authController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.post('/magic-link', createMagicLink);
 
