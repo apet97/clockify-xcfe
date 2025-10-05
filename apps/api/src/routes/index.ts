@@ -6,6 +6,7 @@ import dictionaryRoutes from './dictionaries.js';
 import backfillRoutes from './backfill.js';
 import authRoutes from './auth.js';
 import runsRoutes from './runs.js';
+import settingsRoutes from './settings.js';
 
 const router: Router = Router();
 
@@ -16,5 +17,6 @@ router.use('/dictionaries', dictionaryRoutes);
 router.use('/backfill', backfillRoutes);
 router.use('/auth', authRoutes);
 router.use('/runs', runsRoutes);
+router.use('/settings', settingsRoutes);
 
 export default router;

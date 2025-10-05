@@ -51,3 +51,13 @@ export const healthCheck: RequestHandler = async (_req, res) => {
     db: dbHealth
   });
 };
+
+export const readinessCheck: RequestHandler = async (_req, res) => {
+  const dbHealth = await checkDbHealth();
+  
+  if (dbHealth.reachable) {
+    res.status(200).json({ ready: true });
+  } else {
+    res.status(503).json({ ready: false, error: dbHealth.error });
+  }
+};
