@@ -5,8 +5,8 @@
     "rootDir": "src",
     "tsBuildInfoFile": "dist/.tsbuildinfo",
     "incremental": true,
-    "composite": true
+    "composite": true,
+    "typeRoots": ["./src/@types", "./node_modules/@types"]
   },
-  "include": ["src", "src/types"],
-  "exclude": ["dist", "node_modules"]
+  "include": ["src"]
 }

@@ -1,3 +1,4 @@
+/// <reference path="./@types/express/index.d.ts" />
 import express, { type Request, type Response } from 'express';
 import pinoHttp from 'pino-http';
 import cors from 'cors';

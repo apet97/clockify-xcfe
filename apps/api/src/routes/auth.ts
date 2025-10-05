@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { createMagicLink } from '../controllers/authController.js';
 
 const router: Router = Router();

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import healthRoutes from './health.js';
 import webhookRoutes from './webhooks.js';
 import formulaRoutes from './formulas.js';

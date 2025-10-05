@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { clockifyWebhookHandler } from '../controllers/webhookController.js';
 
 const router: Router = Router();

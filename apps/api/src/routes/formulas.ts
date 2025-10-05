@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { getFormulas, postFormula, putFormula, removeFormula } from '../controllers/formulaController.js';
 
 const router: Router = Router();

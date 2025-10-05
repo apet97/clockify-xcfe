@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { getRuns } from '../controllers/runController.js';
 
 const router: Router = Router();
