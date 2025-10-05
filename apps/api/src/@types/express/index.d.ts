@@ -1,8 +1,10 @@
-import 'express';
-
-declare module 'express' {
-  interface Request {
-    rawBody?: string;
-    correlationId?: string;
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: string;
+      correlationId?: string;
+    }
   }
 }
+
+export {};

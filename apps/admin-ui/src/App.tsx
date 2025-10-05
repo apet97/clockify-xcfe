@@ -9,14 +9,14 @@ import BackfillPage from './pages/BackfillPage.js';
 import AuditLogPage from './pages/AuditLogPage.js';
 import SettingsPage from './pages/SettingsPage.js';
 
-const navItems = [
+const navItems: Array<{to: string; label: string; end?: boolean}> = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/formulas', label: 'Formulas' },
   { to: '/dictionaries', label: 'Dictionaries' },
   { to: '/backfill', label: 'Backfill' },
   { to: '/audit', label: 'Audit Log' },
   { to: '/settings', label: 'Settings' }
-] as const;
+];
 
 const App: React.FC = () => {
   const { token, logout } = useAuth();

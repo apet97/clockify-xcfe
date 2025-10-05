@@ -1,17 +1,17 @@
 {
   "name": "xCustom Field Expander",
   "slug": "xcfe",
+  "version": "1.0.0",
   "icon": "https://example.com/xcfe-icon.png",
-  "summary": "Compute and validate Clockify custom fields in real time.",
-  "description": "xCustom Field Expander (xCFE) evaluates formulas for Clockify time entries, validates dropdowns and numeric ranges, and writes computed values back to custom fields.",
+  "summary": "Automated formula evaluation and validation for Clockify custom fields",
+  "description": "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
   "scopes": [
-    "time_entries:read",
-    "time_entries:write",
+    "timeEntries:read",
+    "timeEntries:write", 
+    "users:read",
     "projects:read",
     "tasks:read",
-    "users:read",
-    "custom_fields:read",
-    "custom_fields:write",
+    "customFields:read",
     "webhooks:manage"
   ],
   "authentication": {
@@ -21,22 +21,34 @@
         "header": "X-Addon-Token"
       },
       {
-        "type": "api_key",
+        "type": "api_key", 
         "header": "X-Api-Key"
       }
     ]
   },
-  "endpoints": {
-    "webhook": "https://YOUR-API-URL.example.com/v1/webhooks/clockify",
-    "admin": "https://YOUR-ADMIN-URL.example.com"
-  },
+  "iframeUrl": "https://YOUR-ADMIN-URL.example.com",
+  "webhookUrl": "https://YOUR-API-URL.example.com/v1/webhooks/clockify",
   "regions": ["global", "euc1", "use2", "euw2", "apse2"],
-  "backfill": {
-    "supportsManual": true,
-    "supportsAutomated": false
+  "features": {
+    "backfill": {
+      "supportsManual": true,
+      "supportsAutomated": false,
+      "maxMonths": 6
+    },
+    "realtime": {
+      "supportsCreate": true,
+      "supportsUpdate": true,
+      "supportsDelete": false
+    },
+    "validation": {
+      "dropdowns": true,
+      "numericRanges": true,
+      "customRules": true
+    }
   },
   "support": {
     "email": "support@example.com",
+    "documentation": "https://example.com/xcfe/docs",
     "slaHours": 24
   }
 }

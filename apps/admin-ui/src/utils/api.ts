@@ -6,7 +6,7 @@ const normalize = (path: string) => {
   return `${baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
-type RequestInitExt = RequestInit & { body?: unknown };
+type RequestInitExt = Omit<RequestInit, 'body'> & { body?: unknown };
 
 export const apiRequest = async <T>(token: string | null, path: string, init: RequestInitExt = {}): Promise<T> => {
   const url = normalize(path);
@@ -24,12 +24,9 @@ export const apiRequest = async <T>(token: string | null, path: string, init: Re
 
   const requestInit: RequestInit = {
     ...init,
-    headers
+    headers,
+    body: isJsonBody ? JSON.stringify(init.body) : (init.body as BodyInit | undefined)
   };
-
-  if (isJsonBody) {
-    requestInit.body = JSON.stringify(init.body);
-  }
 
   const response = await fetch(url, requestInit);
   if (!response.ok) {

@@ -11,7 +11,7 @@ import { CONFIG } from './config/index.js';
 
 const rawBodySaver = (req: Request, _res: Response, buf: Buffer) => {
   if (buf && req.originalUrl?.startsWith('/v1/webhooks')) {
-    (req as any).rawBody = buf.toString('utf8');
+    req.rawBody = buf.toString('utf8');
   }
 };
 
@@ -31,8 +31,8 @@ export const createApp = (): express.Express => {
   app.use(
     pinoHttp({
       logger,
-      genReqId: req => (req as any).correlationId ?? (req.headers['x-correlation-id'] as string | undefined) ?? randomUUID(),
-      customProps: req => ({ correlationId: (req as any).correlationId })
+      genReqId: req => req.correlationId ?? (req.headers['x-correlation-id'] as string | undefined) ?? randomUUID(),
+      customProps: req => ({ correlationId: req.correlationId })
     })
   );
 

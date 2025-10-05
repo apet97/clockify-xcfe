@@ -22,10 +22,36 @@
 4. Start local services with `scripts/dev.sh` (Postgres via Docker, API watcher, Vite admin UI).
 
 ## Deployment Workflow
-1. Provision managed Postgres (Render, Supabase, or RDS) and run `infra/db.sql` to seed schema.
-2. Deploy the API (Render, Fly.io, or Vercel). Include the environment variables above.
-3. Deploy the Vite admin UI (Vercel or Netlify). Set `VITE_API_BASE_URL` to the public API URL.
-4. On first boot the API calls `/workspaces/{ws}/addons/{addonId}/webhooks` (described in `docs/https-docs-clockify-me.md`) to ensure the webhook subscription exists.
+
+### Option A: Render Deployment
+1. **Database**: Create PostgreSQL instance on Render
+   ```bash
+   # Run migrations after database is ready
+   psql $DATABASE_URL -f infra/db.sql
+   ```
+
+2. **API Service**: Create new Web Service on Render
+   - Build Command: `pnpm install && pnpm --filter @xcfe/api build`
+   - Start Command: `pnpm --filter @xcfe/api start`
+   - Environment Variables: Copy from `.env.sample`
+
+3. **Admin UI**: Create Static Site on Render
+   - Build Command: `pnpm install && pnpm --filter @xcfe/admin-ui build`
+   - Publish Directory: `apps/admin-ui/dist`
+   - Environment Variable: `VITE_API_BASE_URL=https://your-api.onrender.com/v1`
+
+### Option B: Vercel Deployment
+1. **Database**: Use Vercel Postgres or external provider
+2. **API**: Deploy to Vercel Functions
+   - Configure `vercel.json` for API routes
+   - Set environment variables in Vercel dashboard
+3. **Admin UI**: Deploy as Vercel frontend
+   - Auto-deploys from `/apps/admin-ui`
+   - Set `VITE_API_BASE_URL` environment variable
+
+### Webhook Registration
+On first boot, the API automatically calls Clockify's webhook management endpoint to ensure subscription exists:
+`POST /workspaces/{workspaceId}/addons/{addonId}/webhooks`
 
 ## QA Plan
 1. Seed demo rules with `scripts/seed-demo.sh`.

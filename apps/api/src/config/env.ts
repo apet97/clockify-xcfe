@@ -29,6 +29,7 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().min(1).default('xcfe'),
   JWT_TTL_MINUTES: z.coerce.number().int().positive().default(15),
   CLOCKIFY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  DEV_ALLOW_UNSIGNED: z.coerce.boolean().default(false),
   RATE_LIMIT_RPS: z.coerce.number().int().positive().default(50),
   RATE_LIMIT_MAX_BACKOFF_MS: z.coerce.number().int().positive().default(5000)
 });

@@ -110,7 +110,7 @@ export class ClockifyClient {
     const json = parseJsonSafe(text);
 
     if (response.status === 429) {
-      const retryAfterMs = computeRetryDelayMs(response.headers.get('Retry-After'));
+      const retryAfterMs = computeRetryDelayMs(response.headers.get('Retry-After')) ?? 1000;
       throw new RateLimitError('Clockify rate limit exceeded', retryAfterMs);
     }
 

@@ -9,6 +9,9 @@ import { clockifyTimeEntrySchema, ClockifyWebhookEvent, billableRateUpdatedSchem
 import { recordRun } from '../services/runService.js';
 import { logger } from '../lib/logger.js';
 
+// Rate-limited logging for workspace mismatches (once per minute)
+const workspaceMismatchLog = new Map<string, number>();
+
 const hashCustomFieldValues = (values: { customFieldId: string; value: unknown }[] = []) => {
   const normalized = values
     .map((item) => ({ id: item.customFieldId, value: item.value }))
@@ -40,7 +43,14 @@ const extractTimeEntryPayload = (body: unknown) => {
 
 export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => {
   try {
-    const rawBody = (req as any).rawBody ?? JSON.stringify(req.body ?? {});
+    // Verify addon token if present
+    const addonToken = req.header('x-addon-token');
+    if (CONFIG.ADDON_TOKEN && addonToken !== CONFIG.ADDON_TOKEN) {
+      logger.warn({ addonToken: addonToken ? '[REDACTED]' : undefined }, 'Invalid addon token');
+      return res.status(403).json({ error: 'Invalid addon token' });
+    }
+
+    const rawBody = req.rawBody ?? JSON.stringify(req.body ?? {});
     const signature = req.header('x-clockify-signature');
     if (!verifyClockifySignature(rawBody, signature)) {
       return res.status(401).json({ error: 'Invalid webhook signature' });
@@ -85,10 +95,17 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
 
     const workspaceId = payload.workspaceId ?? CONFIG.WORKSPACE_ID;
     if (workspaceId !== CONFIG.WORKSPACE_ID) {
-      logger.warn({ event, workspaceId }, 'Received event for mismatched workspace');
+      const key = `${workspaceId}:${event}`;
+      const now = Date.now();
+      const lastLogged = workspaceMismatchLog.get(key);
+      if (!lastLogged || now - lastLogged > 60000) {
+        logger.warn({ event, workspaceId }, 'Received event for mismatched workspace');
+        workspaceMismatchLog.set(key, now);
+      }
+      return res.status(200).json({ ok: true, message: 'Workspace mismatch ignored' });
     }
 
-    const correlationId = (req as any).correlationId;
+    const correlationId = req.correlationId;
 
     const start = performance.now();
     const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId);
