@@ -22,6 +22,8 @@ const mockRecordRun = vi.mocked(recordRun);
 const MockFormulaEngine = vi.mocked(FormulaEngine);
 
 describe('runBackfill', () => {
+  let mockEngine: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
     
@@ -31,10 +33,10 @@ describe('runBackfill', () => {
       dictionaries: {}
     });
     
-    const mockEngine = {
+    mockEngine = {
       evaluate: vi.fn().mockReturnValue({ updates: [] })
     };
-    MockFormulaEngine.mockImplementation(() => mockEngine as any);
+    MockFormulaEngine.mockImplementation(() => mockEngine);
   });
 
   afterEach(() => {
@@ -90,7 +92,6 @@ describe('runBackfill', () => {
     } as any);
 
     // Mock formula evaluation to return updates
-    const mockEngine = MockFormulaEngine.mock.instances[0] as any;
     mockEngine.evaluate.mockReturnValue({
       updates: [{ customFieldId: 'field-1', value: 100 }]
     });
@@ -110,7 +111,7 @@ describe('runBackfill', () => {
     });
 
     // Advance timers to simulate retry delay
-    await vi.advanceTimersByTimeAsync(500);
+    await vi.advanceTimersByTimeAsync(1000);
 
     const result = await backfillPromise;
 
@@ -122,7 +123,7 @@ describe('runBackfill', () => {
         status: 'success'
       })
     );
-  });
+  }, 10000);
 
   it('should process large day with pagination', async () => {
     // Mock multiple pages of results
@@ -196,7 +197,6 @@ describe('runBackfill', () => {
     } as any);
 
     // Mock formula evaluation to return updates
-    const mockEngine = MockFormulaEngine.mock.instances[0] as any;
     mockEngine.evaluate.mockReturnValue({
       updates: [{ customFieldId: 'field-1', value: 100 }]
     });

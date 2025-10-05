@@ -89,6 +89,7 @@ describe('Clockify webhook handler', () => {
       header: vi.fn((name: string) => {
         if (name.toLowerCase() === 'x-clockify-signature') return `sha256=${signature}`;
         if (name.toLowerCase() === 'x-clockify-event') return 'NEW_TIME_ENTRY';
+        if (name.toLowerCase() === 'x-addon-token') return 'test-addon-token';
         return undefined;
       }),
       correlationId: 'corr-1'
@@ -124,6 +125,7 @@ describe('Clockify webhook handler', () => {
       header: vi.fn((name: string) => {
         if (name.toLowerCase() === 'x-clockify-signature') return 'sha256=invalid';
         if (name.toLowerCase() === 'x-clockify-event') return 'NEW_TIME_ENTRY';
+        if (name.toLowerCase() === 'x-addon-token') return 'test-addon-token';
         return undefined;
       }),
       correlationId: 'corr-2'
