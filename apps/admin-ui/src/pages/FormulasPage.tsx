@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../providers/AuthProvider.js';
 import { apiRequest } from '../utils/api.js';
 import Modal from '../components/Modal.js';
-import type { Formula } from '../types/api.js';
+import type { Formula, BackfillResult } from '../types/api.js';
 
 const EVENTS = ['NEW_TIME_ENTRY', 'NEW_TIMER_STARTED', 'TIME_ENTRY_UPDATED', 'TIME_ENTRY_DELETED', 'BILLABLE_RATE_UPDATED'] as const;
 
@@ -27,6 +27,8 @@ const FormulasPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showDryRun, setShowDryRun] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<BackfillResult | null>(null);
 
   const formulasQuery = useQuery({
     queryKey: ['formulas'],
@@ -67,6 +69,29 @@ const FormulasPage: React.FC = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['formulas'] })
   });
 
+  const runDryRun = useMutation({
+    mutationFn: async () => {
+      const today = new Date();
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+      
+      return apiRequest<{ accepted: boolean; result: BackfillResult }>(token, '/backfill', {
+        method: 'POST',
+        body: {
+          from: yesterday.toISOString(),
+          to: today.toISOString(),
+          dryRun: true
+        }
+      });
+    },
+    onSuccess: (data) => {
+      setDryRunResult(data.result);
+      setShowDryRun(true);
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Dry run failed');
+    }
+  });
+
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
     if (!draft) return;
@@ -82,9 +107,19 @@ const FormulasPage: React.FC = () => {
       <section className="card">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <h2>Formulas</h2>
-          <button className="primary" type="button" onClick={() => setDraft(newDraft())}>
-            New formula
-          </button>
+          <div className="row">
+            <button 
+              className="ghost" 
+              type="button" 
+              onClick={() => runDryRun.mutate()}
+              disabled={runDryRun.isPending}
+            >
+              {runDryRun.isPending ? 'Running...' : 'Preview (24h)'}
+            </button>
+            <button className="primary" type="button" onClick={() => setDraft(newDraft())}>
+              New formula
+            </button>
+          </div>
         </div>
         <p style={{ color: '#52606d', fontSize: '0.85rem' }}>
           Formulas evaluate against Clockify webhook payloads. Use <code>CF("Field")</code> for cross-field references and helpers like <code>ROUND</code>, <code>IF</code>, and <code>WEEKDAY</code>.
@@ -184,6 +219,106 @@ const FormulasPage: React.FC = () => {
               </button>
             </div>
           </form>
+        </Modal>
+      ) : null}
+
+      {showDryRun && dryRunResult ? (
+        <Modal 
+          title="Formula Preview Results (Last 24h)" 
+          onClose={() => setShowDryRun(false)}
+          size="large"
+        >
+          <div className="stack">
+            <div className="row">
+              <div className="card" style={{ flex: 1 }}>
+                <strong>Scanned</strong>
+                <div style={{ fontSize: '1.5rem' }}>{dryRunResult.scanned}</div>
+              </div>
+              <div className="card" style={{ flex: 1 }}>
+                <strong>Would Update</strong>
+                <div style={{ fontSize: '1.5rem' }}>{dryRunResult.updated}</div>
+              </div>
+              <div className="card" style={{ flex: 1 }}>
+                <strong>Days</strong>
+                <div style={{ fontSize: '1.5rem' }}>{dryRunResult.dayResults.length}</div>
+              </div>
+            </div>
+
+            {dryRunResult.dayResults.length > 0 && (
+              <div>
+                <h4>Daily Breakdown</h4>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Entries</th>
+                      <th>Would Update</th>
+                      <th>Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dryRunResult.dayResults.map(day => (
+                      <tr key={day.date}>
+                        <td>{day.date}</td>
+                        <td>{day.entries}</td>
+                        <td>{day.updated}</td>
+                        <td style={{ color: day.errors > 0 ? '#d73a49' : undefined }}>
+                          {day.errors}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {dryRunResult.outcomes.length > 0 && (
+              <div>
+                <h4>Sample Changes</h4>
+                <div style={{ maxHeight: '300px', overflow: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Entry ID</th>
+                        <th>Updates</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dryRunResult.outcomes.slice(0, 20).map(outcome => (
+                        <tr key={outcome.entryId}>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                            {outcome.entryId.slice(-8)}
+                          </td>
+                          <td>{outcome.updates}</td>
+                          <td>
+                            {outcome.error ? (
+                              <span style={{ color: '#d73a49' }}>Error</span>
+                            ) : outcome.updates > 0 ? (
+                              <span style={{ color: '#28a745' }}>Changes</span>
+                            ) : (
+                              'No changes'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {dryRunResult.outcomes.length > 20 && (
+                    <p style={{ textAlign: 'center', color: '#52606d', fontSize: '0.9rem' }}>
+                      ... and {dryRunResult.outcomes.length - 20} more entries
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button className="ghost" onClick={() => setShowDryRun(false)}>
+                Close
+              </button>
+            </div>
+          </div>
         </Modal>
       ) : null}
     </div>

@@ -69,33 +69,98 @@ const BackfillPage: React.FC = () => {
       {backfillMutation.error ? <div className="error">Unable to process request</div> : null}
 
       {result ? (
-        <section className="card">
-          <h3>Summary</h3>
-          <p>
-            Scanned <strong>{result.scanned}</strong> entries and {result.dryRun ? 'would update' : 'updated'}{' '}
-            <strong>{result.updated}</strong> entries.
-          </p>
-          {result.outcomes.length ? (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Entry</th>
-                  <th>Updates</th>
-                  <th>Correlation ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.outcomes.map(item => (
-                  <tr key={item.correlationId}>
-                    <td>{item.entryId}</td>
-                    <td>{item.updates}</td>
-                    <td>{item.correlationId}</td>
+        <section className="card stack">
+          <h3>Results</h3>
+          
+          <div className="stats-grid">
+            <div className="stat">
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{result.scanned}</div>
+              <div>Entries Scanned</div>
+            </div>
+            <div className="stat">
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: result.updated > 0 ? '#28a745' : '#52606d' }}>
+                {result.updated}
+              </div>
+              <div>{result.dryRun ? 'Would Update' : 'Updated'}</div>
+            </div>
+            <div className="stat">
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{result.dayResults.length}</div>
+              <div>Days Processed</div>
+            </div>
+          </div>
+
+          {result.dayResults.length > 0 && (
+            <div>
+              <h4>Daily Breakdown</h4>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Entries</th>
+                    <th>{result.dryRun ? 'Would Update' : 'Updated'}</th>
+                    <th>Errors</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p>No changes detected.</p>
+                </thead>
+                <tbody>
+                  {result.dayResults.map(day => (
+                    <tr key={day.date}>
+                      <td>{day.date}</td>
+                      <td>{day.entries}</td>
+                      <td style={{ color: day.updated > 0 ? '#28a745' : undefined }}>
+                        {day.updated}
+                      </td>
+                      <td style={{ color: day.errors > 0 ? '#d73a49' : undefined }}>
+                        {day.errors}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {result.outcomes.length > 0 && (
+            <div>
+              <h4>Entry Details {result.outcomes.length > 20 && `(showing first 20 of ${result.outcomes.length})`}</h4>
+              <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Entry ID</th>
+                      <th>Updates</th>
+                      <th>Status</th>
+                      <th>Correlation ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.outcomes.slice(0, 20).map(item => (
+                      <tr key={item.correlationId}>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                          {item.entryId.slice(-8)}
+                        </td>
+                        <td>{item.updates}</td>
+                        <td>
+                          {item.error ? (
+                            <span style={{ color: '#d73a49' }}>Error</span>
+                          ) : item.updates > 0 ? (
+                            <span style={{ color: '#28a745' }}>Changes</span>
+                          ) : (
+                            'No changes'
+                          )}
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                          {item.correlationId.slice(-8)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {result.outcomes.length === 0 && (
+            <p>No entries found in the specified date range.</p>
           )}
         </section>
       ) : null}

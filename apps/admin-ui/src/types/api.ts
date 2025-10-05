@@ -18,7 +18,18 @@ export type BackfillResult = {
   scanned: number;
   updated: number;
   dryRun: boolean;
-  outcomes: { entryId: string; updates: number; correlationId: string }[];
+  dayResults: Array<{
+    date: string;
+    entries: number;
+    updated: number;
+    errors: number;
+  }>;
+  outcomes: Array<{
+    entryId: string;
+    updates: number;
+    correlationId: string;
+    error?: string;
+  }>;
 };
 
 export type RunRecord = {
@@ -29,4 +40,30 @@ export type RunRecord = {
   ts: string;
   ms?: number | null;
   diff?: unknown;
+};
+
+export type Settings = {
+  strict_mode: boolean;
+  reference_months: number;
+  region?: string;
+};
+
+export type DryRunPreview = {
+  entryId: string;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  updates: Array<{
+    customFieldId: string;
+    value: unknown;
+  }>;
+};
+
+export type HealthStatus = {
+  ok: boolean;
+  db: {
+    reachable: boolean;
+    schemaVersion?: string;
+  };
+  workspaceId: string;
+  timestamp: string;
 };

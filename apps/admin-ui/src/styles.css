@@ -240,3 +240,8 @@ textarea {
 .modal-body {
   padding: 16px;
 }
+
+.modal-large {
+  width: min(900px, 95%);
+  max-height: 95vh;
+}
