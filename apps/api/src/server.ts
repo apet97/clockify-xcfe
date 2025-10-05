@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { CONFIG } from './config/index.js';
 import { logger } from './lib/logger.js';
-import { ensureClockifyWebhook } from './services/webhookRegistrar.js';
+import { ensureWebhooks } from './services/webhookRegistrar.js';
 import { createApp } from './app.js';
 import { ensureSchema } from './lib/db.js';
 
@@ -22,9 +22,14 @@ export const start = async () => {
     throw error;
   });
 
-  await ensureClockifyWebhook().catch(error => {
+  const webhookIds = await ensureWebhooks().catch(error => {
     logger.warn({ err: error }, 'Continuing startup despite webhook bootstrap failure');
+    return [];
   });
+
+  if (webhookIds.length > 0) {
+    logger.info({ webhookIds }, 'Webhook registration completed successfully');
+  }
 
   const server = http.createServer(app);
   server.listen(CONFIG.PORT, () => {
