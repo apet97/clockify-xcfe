@@ -1,0 +1,42 @@
+{
+  "name": "xCustom Field Expander",
+  "slug": "xcfe",
+  "icon": "https://example.com/xcfe-icon.png",
+  "summary": "Compute and validate Clockify custom fields in real time.",
+  "description": "xCustom Field Expander (xCFE) evaluates formulas for Clockify time entries, validates dropdowns and numeric ranges, and writes computed values back to custom fields.",
+  "scopes": [
+    "time_entries:read",
+    "time_entries:write",
+    "projects:read",
+    "tasks:read",
+    "users:read",
+    "custom_fields:read",
+    "custom_fields:write",
+    "webhooks:manage"
+  ],
+  "authentication": {
+    "strategies": [
+      {
+        "type": "addon_token",
+        "header": "X-Addon-Token"
+      },
+      {
+        "type": "api_key",
+        "header": "X-Api-Key"
+      }
+    ]
+  },
+  "endpoints": {
+    "webhook": "https://YOUR-API-URL.example.com/v1/webhooks/clockify",
+    "admin": "https://YOUR-ADMIN-URL.example.com"
+  },
+  "regions": ["global", "euc1", "use2", "euw2", "apse2"],
+  "backfill": {
+    "supportsManual": true,
+    "supportsAutomated": false
+  },
+  "support": {
+    "email": "support@example.com",
+    "slaHours": 24
+  }
+}
