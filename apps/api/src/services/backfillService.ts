@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { CONFIG } from '../config/index.js';
 import { clockifyClient, RateLimitError } from '../lib/clockifyClient.js';
-import { FormulaEngine } from '../lib/formulaEngine.js';
+import { FormulaEngine, type FormulaDefinition } from '../lib/formulaEngine.js';
 import { fetchFormulaEngineInputs } from './formulaService.js';
 import { recordRun } from './runService.js';
 import { logger } from '../lib/logger.js';
@@ -52,7 +52,7 @@ const getDaysBetween = (start: Date, end: Date): Date[] => {
 const processEntriesPage = async (
   workspaceId: string,
   engine: FormulaEngine,
-  formulas: unknown[],
+  formulas: FormulaDefinition[],
   entries: Array<{ id: string }>,
   dryRun: boolean,
   correlationId: string
@@ -211,7 +211,7 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
       while (true) {
         let retryCount = 0;
         const maxRetries = 3;
-        let report;
+        let report: Awaited<ReturnType<typeof clockifyClient.getDetailedReport>> | undefined;
 
         // Get page with retry on rate limit
         while (retryCount <= maxRetries) {
@@ -245,6 +245,10 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
               throw error;
             }
           }
+        }
+
+        if (!report) {
+          throw new Error('Failed to get report after retries');
         }
 
         const entries = report.timeEntries || [];

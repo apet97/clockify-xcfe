@@ -6,7 +6,7 @@ export const verifyClockifySignature = (rawBody: string, signatureHeader?: strin
   if (!CONFIG.CLOCKIFY_WEBHOOK_SECRET) return true;
   if (!signatureHeader) return false;
   const [scheme, signature] = signatureHeader.split('=', 2);
-  if (!scheme || !signature || scheme.toLowerCase() !== 'sha256') return false;
+  if (!scheme || !signature || scheme !== 'sha256') return false;
 
   const computed = createHmac('sha256', CONFIG.CLOCKIFY_WEBHOOK_SECRET).update(rawBody).digest('hex');
   return timingSafeEquals(computed, signature);

@@ -13,7 +13,7 @@ export const logger = pino({
   timestamp: pino.stdTimeFunctions.isoTime,
   formatters: {
     level: (label) => ({ level: label }),
-    log: (object) => {
+    log: (object: any) => {
       // Redact sensitive headers and data
       if (object.req?.headers) {
         const headers = { ...object.req.headers };

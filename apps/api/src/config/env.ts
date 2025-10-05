@@ -16,6 +16,7 @@ const envSchema = z.object({
   CLOCKIFY_REGION: z
     .enum(['euc1', 'use2', 'euw2', 'apse2'])
     .optional()
+    .or(z.literal(''))
     .describe('Region code from docs to override base URL when necessary'),
   ADDON_TOKEN: z.string().min(1).optional(),
   API_KEY: z.string().min(1).optional(),
