@@ -191,30 +191,127 @@ const buildFieldState = (timeEntry: ClockifyTimeEntry) => {
   };
 };
 
+const coerceNumber = (value: unknown): number => {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error('NaN and Infinity values are not allowed in formulas');
+    }
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      throw new Error(`Cannot convert "${value}" to a finite number`);
+    }
+    return parsed;
+  }
+  throw new Error(`Cannot convert ${typeof value} to number`);
+};
+
+const validateRegexPattern = (pattern: string, flags: string) => {
+  // Prevent catastrophic backtracking and other dangerous patterns
+  if (pattern.length > 100) {
+    throw new Error('Regex pattern too long');
+  }
+  if (flags.length > 10) {
+    throw new Error('Regex flags too long');
+  }
+  if (pattern.includes('(?') || pattern.includes('(?(')) {
+    throw new Error('Conditional regex patterns not allowed');
+  }
+  // Basic check for excessive nesting that could cause DoS
+  const nestingLevel = (pattern.match(/\(/g) || []).length;
+  if (nestingLevel > 10) {
+    throw new Error('Regex pattern too complex');
+  }
+};
+
+// Whitelist of allowed functions - security measure to prevent code injection
+const ALLOWED_FUNCTIONS = new Set([
+  'ROUND', 'MIN', 'MAX', 'IF', 'AND', 'OR', 'NOT', 'IN', 
+  'REGEXMATCH', 'DATE', 'HOUR', 'WEEKDAY', 'WEEKNUM', 'CF'
+]);
+
 const installFunctions = () => {
-  parser.functions.ROUND = (value: number, decimals = 0) => {
-    const factor = Math.pow(10, decimals);
-    return Math.round(value * factor) / factor;
+  // Clear any existing functions first for security
+  parser.functions = {};
+  
+  parser.functions.ROUND = (value: unknown, decimals: unknown = 0) => {
+    const num = coerceNumber(value);
+    const dec = coerceNumber(decimals);
+    if (dec < 0 || dec > 10) {
+      throw new Error('ROUND decimals must be between 0 and 10');
+    }
+    const factor = Math.pow(10, dec);
+    const result = Math.round(num * factor) / factor;
+    return coerceNumber(result); // Ensure result is finite
   };
-  parser.functions.MIN = Math.min;
-  parser.functions.MAX = Math.max;
-  parser.functions.IF = (condition: boolean, whenTrue: unknown, whenFalse: unknown) => (condition ? whenTrue : whenFalse);
-  parser.functions.AND = (...args: unknown[]) => args.every(Boolean);
-  parser.functions.OR = (...args: unknown[]) => args.some(Boolean);
+  
+  parser.functions.MIN = (...args: unknown[]) => {
+    if (args.length === 0) throw new Error('MIN requires at least one argument');
+    const numbers = args.map(coerceNumber);
+    return Math.min(...numbers);
+  };
+  
+  parser.functions.MAX = (...args: unknown[]) => {
+    if (args.length === 0) throw new Error('MAX requires at least one argument');
+    const numbers = args.map(coerceNumber);
+    return Math.max(...numbers);
+  };
+  
+  parser.functions.IF = (condition: unknown, whenTrue: unknown, whenFalse: unknown) => {
+    return Boolean(condition) ? whenTrue : whenFalse;
+  };
+  
+  parser.functions.AND = (...args: unknown[]) => {
+    if (args.length === 0) return true;
+    return args.every(Boolean);
+  };
+  
+  parser.functions.OR = (...args: unknown[]) => {
+    if (args.length === 0) return false;
+    return args.some(Boolean);
+  };
+  
   parser.functions.NOT = (value: unknown) => !value;
-  parser.functions.IN = (needle: unknown, ...haystack: unknown[]) => haystack.some((value) => deepEqual(value, needle));
-  parser.functions.REGEXMATCH = (text: string, pattern: string, flags = '') => {
-    const re = new RegExp(pattern, flags);
-    return re.test(text ?? '');
+  
+  parser.functions.IN = (needle: unknown, ...haystack: unknown[]) => {
+    if (haystack.length === 0) return false;
+    return haystack.some((value) => deepEqual(value, needle));
   };
+  
+  parser.functions.REGEXMATCH = (text: unknown, pattern: unknown, flags: unknown = '') => {
+    const textStr = String(text ?? '');
+    const patternStr = String(pattern);
+    const flagsStr = String(flags);
+    
+    validateRegexPattern(patternStr, flagsStr);
+    
+    try {
+      const re = new RegExp(patternStr, flagsStr);
+      return re.test(textStr);
+    } catch (error) {
+      throw new Error(`Invalid regex: ${(error as Error).message}`);
+    }
+  };
+  
   parser.functions.DATE = (input: unknown) => toDate(input);
-  parser.functions.HOUR = (input: unknown) => toDate(input).getUTCHours();
+  
+  parser.functions.HOUR = (input: unknown) => {
+    const date = toDate(input);
+    return date.getUTCHours();
+  };
+  
   parser.functions.WEEKDAY = (input: unknown) => {
     const date = toDate(input);
     const day = date.getUTCDay();
     return day === 0 ? 7 : day;
   };
-  parser.functions.WEEKNUM = (input: unknown) => weekNumber(toDate(input));
+  
+  parser.functions.WEEKNUM = (input: unknown) => {
+    const date = toDate(input);
+    return weekNumber(date);
+  };
 };
 
 installFunctions();
@@ -242,7 +339,43 @@ export class FormulaEngine {
     const changes: Record<string, unknown> = {};
 
     for (const formula of executionPlan) {
-      const expr = parser.parse(formula.expr);
+      // Security validation: check for disallowed functions
+      const expressionStr = formula.expr.toUpperCase();
+      const functionMatches = expressionStr.match(/\b([A-Z_][A-Z0-9_]*)\s*\(/g);
+      if (functionMatches) {
+        for (const match of functionMatches) {
+          const funcName = match.replace(/\s*\($/, '');
+          if (!ALLOWED_FUNCTIONS.has(funcName)) {
+            diagnostics.push({
+              fieldKey: formula.fieldKey,
+              mode: 'block',
+              severity: 'error',
+              code: 'value.invalid',
+              message: `Function '${funcName}' is not allowed in formulas`
+            });
+            continue;
+          }
+        }
+        // If any disallowed functions were found, skip this formula
+        if (diagnostics.some(d => d.fieldKey === formula.fieldKey && d.message.includes('not allowed'))) {
+          continue;
+        }
+      }
+
+      let expr;
+      try {
+        expr = parser.parse(formula.expr);
+      } catch (parseError) {
+        diagnostics.push({
+          fieldKey: formula.fieldKey,
+          mode: 'warn',
+          severity: 'error',
+          code: 'value.invalid',
+          message: `Failed to parse formula ${formula.id}: ${(parseError as Error).message}`
+        });
+        continue;
+      }
+      
       const scope = {
         ...baseScope,
         CF: (fieldName: string) => {
