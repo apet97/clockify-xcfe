@@ -91,8 +91,8 @@ export class ClockifyClient {
     return headers;
   }
 
-  private async rawRequest<T>({ method = 'GET', path, body, query, correlationId }: RequestOptions): Promise<T> {
-    const url = new URL(path + serializeQuery(query), this.baseUrl).toString();
+  private async rawRequest<T>({ method = 'GET', path, body, query, correlationId }: RequestOptions, baseUrlOverride?: string): Promise<T> {
+    const url = new URL(path + serializeQuery(query), baseUrlOverride || this.baseUrl).toString();
     const requestInit: RequestInit = {
       method,
       headers: this.getHeaders(correlationId)
@@ -121,9 +121,9 @@ export class ClockifyClient {
     return json as T;
   }
 
-  async request<T>(options: RequestOptions): Promise<T> {
+  async request<T>(options: RequestOptions, baseUrlOverride?: string): Promise<T> {
     const correlationId = options.correlationId ?? randomUUID();
-    return rateLimiter.schedule(async () => this.rawRequest<T>({ ...options, correlationId }));
+    return rateLimiter.schedule(async () => this.rawRequest<T>({ ...options, correlationId }, baseUrlOverride));
   }
 
   async getTimeEntry(workspaceId: string, entryId: string, correlationId?: string): Promise<ClockifyTimeEntry> {
@@ -175,17 +175,38 @@ export class ClockifyClient {
 
   async getDetailedReport(
     workspaceId: string, 
-    body: {
+    params: {
       dateRangeStart: string;
       dateRangeEnd: string;
       users?: { ids: string[] };
-      exportType: string;
+      exportType?: string;
       hydrate?: boolean;
       page?: number;
       pageSize?: number;
     },
     correlationId?: string
   ) {
+    // Build proper Detailed Report API request structure
+    // Based on: CLOCKIFY_DETAILED_REPORT_API_COMPLETE_GUIDE.md
+    const body = {
+      dateRangeStart: params.dateRangeStart,
+      dateRangeEnd: params.dateRangeEnd,
+      detailedFilter: {
+        page: params.page || 1,
+        pageSize: Math.min(params.pageSize || 200, 200), // Cap at 200 (API limit)
+        sortColumn: "DATE", // Consistent sorting for pagination
+        options: {
+          totals: "CALCULATE"
+        }
+      },
+      exportType: params.exportType || "JSON",
+      sortOrder: "DESCENDING", // Most recent first
+      ...(params.users && { users: params.users })
+    };
+
+    // Use Reports API endpoint (different from regular API)
+    const reportsBaseUrl = CONFIG.CLOCKIFY_BASE_URL.replace('api.clockify.me/api/v1', 'reports.api.clockify.me/v1');
+    
     return this.request<{
       timeEntries: Array<{ id: string; [key: string]: unknown }>;
       totals: Array<{ [key: string]: unknown }>;
@@ -194,7 +215,7 @@ export class ClockifyClient {
       path: `/workspaces/${workspaceId}/reports/detailed`,
       body,
       correlationId
-    });
+    }, reportsBaseUrl);
   }
 }
 

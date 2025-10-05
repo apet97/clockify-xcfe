@@ -49,6 +49,13 @@ const getDaysBetween = (start: Date, end: Date): Date[] => {
   return days;
 };
 
+const validateDateRange = (start: Date, end: Date): void => {
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysDiff > 366) {
+    throw new Error(`Date range too large: ${daysDiff} days. Maximum allowed is 366 days for Clockify Reports API.`);
+  }
+};
+
 const processEntriesPage = async (
   workspaceId: string,
   engine: FormulaEngine,
@@ -181,6 +188,10 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
     // Parse date range and split into daily windows
     const startDate = new Date(params.from);
     const endDate = new Date(params.to);
+    
+    // Validate date range constraints
+    validateDateRange(startDate, endDate);
+    
     const days = getDaysBetween(startDate, endDate);
 
     logger.info({ 
@@ -223,7 +234,6 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
                 dateRangeEnd: dayEnd,
                 users: params.userId ? { ids: [params.userId] } : undefined,
                 exportType: 'JSON',
-                hydrate: true,
                 page,
                 pageSize
               },
