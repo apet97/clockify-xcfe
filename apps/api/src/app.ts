@@ -23,10 +23,16 @@ export const createApp = (): express.Express => {
 
   app.set('trust proxy', true);
 
-  app.use(cors({
-    origin: CONFIG.ADMIN_UI_ORIGIN ?? '*',
-    credentials: true
-  }));
+  const allowedOrigins = CONFIG.ADMIN_UI_ORIGIN
+    ? CONFIG.ADMIN_UI_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
+    : undefined;
+
+  app.use(
+    cors({
+      origin: allowedOrigins ? allowedOrigins : true,
+      credentials: true
+    })
+  );
 
   app.use(express.json({ verify: rawBodySaver }));
   app.use(express.urlencoded({ extended: true }));
