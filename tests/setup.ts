@@ -1,6 +1,9 @@
 process.env.NODE_ENV = 'test';
+process.env.BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 process.env.WORKSPACE_ID = process.env.WORKSPACE_ID || '5f11791a4e759e12c40733ba';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost:5432/xcfe_test';
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'super-secret-test-key-that-is-long-enough';
 process.env.PORT = process.env.PORT || '3000';
 process.env.CLOCKIFY_WEBHOOK_SECRET = process.env.CLOCKIFY_WEBHOOK_SECRET || 'test-secret';
+process.env.DEV_ALLOW_UNSIGNED = process.env.DEV_ALLOW_UNSIGNED || 'true';
+process.env.SKIP_DATABASE_CHECKS = process.env.SKIP_DATABASE_CHECKS || 'true';

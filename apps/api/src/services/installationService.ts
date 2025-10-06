@@ -1,5 +1,6 @@
 import { getDb } from '../lib/db.js';
 import { logger } from '../lib/logger.js';
+import { CONFIG } from '../config/index.js';
 
 export type Installation = {
   addonId: string;
@@ -18,6 +19,11 @@ export const upsertInstallation = async (data: {
   status?: string;
   settingsJson?: Record<string, unknown>;
 }): Promise<void> => {
+  if (CONFIG.SKIP_DATABASE_CHECKS) {
+    logger.debug({ addonId: data.addonId, workspaceId: data.workspaceId }, 'Skipping installation upsert because database checks are disabled');
+    return;
+  }
+
   const db = getDb();
   const client = await db.connect();
   
@@ -52,6 +58,11 @@ export const upsertInstallation = async (data: {
 };
 
 export const getInstallation = async (addonId: string, workspaceId: string): Promise<Installation | null> => {
+  if (CONFIG.SKIP_DATABASE_CHECKS) {
+    logger.debug({ addonId, workspaceId }, 'Skipping installation lookup because database checks are disabled');
+    return null;
+  }
+
   const db = getDb();
   const client = await db.connect();
   
@@ -84,6 +95,11 @@ export const getInstallation = async (addonId: string, workspaceId: string): Pro
 };
 
 export const deleteInstallation = async (addonId: string, workspaceId: string): Promise<void> => {
+  if (CONFIG.SKIP_DATABASE_CHECKS) {
+    logger.debug({ addonId, workspaceId }, 'Skipping installation delete because database checks are disabled');
+    return;
+  }
+
   const db = getDb();
   const client = await db.connect();
   
@@ -102,6 +118,11 @@ export const deleteInstallation = async (addonId: string, workspaceId: string): 
 };
 
 export const getAllInstallations = async (): Promise<Installation[]> => {
+  if (CONFIG.SKIP_DATABASE_CHECKS) {
+    logger.debug('Skipping installation list because database checks are disabled');
+    return [];
+  }
+
   const db = getDb();
   const client = await db.connect();
   

@@ -58,45 +58,69 @@ export type ClockifyJwtClaims = {
 
 let clockifyPublicKey: any = null;
 
+const decodeClockifyClaims = (token: string): ClockifyJwtClaims => {
+  const segments = token.split('.');
+  if (segments.length < 2) {
+    throw new Error('Malformed JWT');
+  }
+
+  try {
+    const payload = Buffer.from(segments[1], 'base64url').toString('utf8');
+    return JSON.parse(payload) as ClockifyJwtClaims;
+  } catch (error) {
+    throw new Error(`Unable to decode lifecycle token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
 const getClockifyPublicKey = async () => {
+  if (!CONFIG.RSA_PUBLIC_KEY_PEM) {
+    throw new Error('Clockify RSA public key is not configured');
+  }
+
   if (!clockifyPublicKey) {
     // Parse RSA public key from PEM format
     const pemKey = CONFIG.RSA_PUBLIC_KEY_PEM
       .replace(/-----BEGIN PUBLIC KEY-----/, '')
       .replace(/-----END PUBLIC KEY-----/, '')
       .replace(/\s/g, '');
-    
+
     const fullPem = `-----BEGIN PUBLIC KEY-----\n${pemKey}\n-----END PUBLIC KEY-----`;
     clockifyPublicKey = await importSPKI(fullPem, 'RS256');
   }
   return clockifyPublicKey;
 };
 
+const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string) => {
+  if (claims.type !== 'addon') {
+    throw new Error('Invalid JWT type, expected "addon"');
+  }
+
+  if (expectedSub && claims.sub !== expectedSub) {
+    throw new Error(`Invalid JWT subject, expected "${expectedSub}", got "${claims.sub}"`);
+  }
+
+  if (!claims.addonId || !claims.workspaceId || !claims.backendUrl) {
+    throw new Error('Missing required JWT claims');
+  }
+};
+
 export const verifyClockifyJwt = async (token: string, expectedSub?: string): Promise<ClockifyJwtClaims> => {
   try {
+    if (CONFIG.DEV_ALLOW_UNSIGNED && !CONFIG.RSA_PUBLIC_KEY_PEM) {
+      const claims = decodeClockifyClaims(token);
+      validateClockifyClaims(claims, expectedSub);
+      return claims;
+    }
+
     const publicKey = await getClockifyPublicKey();
-    
+
     const { payload } = await jwtVerify(token, publicKey, {
       issuer: 'clockify',
       algorithms: ['RS256']
     });
 
-    // Validate required claims
-    if (payload.type !== 'addon') {
-      throw new Error('Invalid JWT type, expected "addon"');
-    }
-
-    if (expectedSub && payload.sub !== expectedSub) {
-      throw new Error(`Invalid JWT subject, expected "${expectedSub}", got "${payload.sub}"`);
-    }
-
-    // Type assertion with validation
     const claims = payload as ClockifyJwtClaims;
-    
-    if (!claims.addonId || !claims.workspaceId || !claims.backendUrl) {
-      throw new Error('Missing required JWT claims');
-    }
-
+    validateClockifyClaims(claims, expectedSub);
     return claims;
   } catch (error) {
     throw new Error(`JWT verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
