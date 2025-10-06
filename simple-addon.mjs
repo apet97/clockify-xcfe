@@ -54,7 +54,7 @@ const manifest = {
       }
     ]
   }),
-  lifecycles: {
+  lifecycle: {
     installed: `${ADDON_CONFIG.BASE_URL}/lifecycle/installed`,
     statusChanged: `${ADDON_CONFIG.BASE_URL}/lifecycle/status`,
     settingsUpdated: `${ADDON_CONFIG.BASE_URL}/lifecycle/settings`,

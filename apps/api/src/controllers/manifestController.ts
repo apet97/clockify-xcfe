@@ -44,7 +44,7 @@ export const getManifest: RequestHandler = (_req, res) => {
         }
       ]
     }),
-    lifecycles: {
+    lifecycle: {
       installed: `${CONFIG.BASE_URL}/lifecycle/installed`,
       statusChanged: `${CONFIG.BASE_URL}/lifecycle/status`,
       settingsUpdated: `${CONFIG.BASE_URL}/lifecycle/settings`,
