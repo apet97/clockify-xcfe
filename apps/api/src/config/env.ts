@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+if (process.env.BASE_URL?.trim() === '') {
+  delete process.env.BASE_URL;
+}
+
 const encryptionKeySchema = z
   .string()
   .min(32, 'ENCRYPTION_KEY must be at least 32 characters')
@@ -9,13 +13,24 @@ const encryptionKeySchema = z
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(8080),
-  BASE_URL: z.string().url().default('http://localhost:8080'),
+  BASE_URL: z
+    .preprocess(value => {
+      if (typeof value === 'string' && value.trim() === '') {
+        return undefined;
+      }
+      return value;
+    }, z.string().min(1))
+    .default('http://localhost:8080'),
   
   // Marketplace Add-on Configuration
   ADDON_KEY: z.string().min(1).default('xcfe.example'),
   ADDON_NAME: z.string().min(1).default('xCustom Field Expander'),
   MIN_PLAN: z.enum(['FREE', 'BASIC', 'PRO', 'ENTERPRISE']).default('FREE'),
-  RSA_PUBLIC_KEY_PEM: z.string().min(1).describe('RSA public key for Clockify JWT verification'),
+  RSA_PUBLIC_KEY_PEM: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('RSA public key for Clockify JWT verification'),
   
   CLOCKIFY_BASE_URL: z
     .string()
@@ -44,6 +59,29 @@ const envSchema = z.object({
   RATE_LIMIT_RPS: z.coerce.number().int().positive().default(50),
   RATE_LIMIT_MAX_BACKOFF_MS: z.coerce.number().int().positive().default(5000),
   SKIP_DATABASE_CHECKS: z.coerce.boolean().default(false)
+}).superRefine((env, ctx) => {
+  if (!env.RSA_PUBLIC_KEY_PEM && !env.DEV_ALLOW_UNSIGNED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RSA_PUBLIC_KEY_PEM'],
+      message: 'RSA_PUBLIC_KEY_PEM must be provided unless DEV_ALLOW_UNSIGNED=true'
+    });
+  }
+
+  try {
+    // eslint-disable-next-line no-new
+    new URL(env.BASE_URL);
+  } catch {
+    if (env.NODE_ENV === 'production') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['BASE_URL'],
+        message: 'BASE_URL must be a valid URL in production'
+      });
+    } else {
+      env.BASE_URL = 'http://localhost:8080';
+    }
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);
