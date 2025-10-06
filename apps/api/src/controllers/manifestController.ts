@@ -7,7 +7,7 @@ export const getManifest: RequestHandler = (_req, res) => {
     name: CONFIG.ADDON_NAME,
     baseUrl: CONFIG.BASE_URL,
     description: "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
-    minimalSubscriptionPlan: CONFIG.MIN_PLAN,
+    minimalSubscriptionPlan: "PRO",
     scopes: [
       "TIME_ENTRY_READ",
       "TIME_ENTRY_WRITE", 
@@ -46,20 +46,20 @@ export const getManifest: RequestHandler = (_req, res) => {
     }),
     lifecycle: [
       {
-        type: "installed",
-        url: `${CONFIG.BASE_URL}/lifecycle/installed`
+        type: "INSTALLED",
+        path: "/lifecycle/installed"
       },
       {
-        type: "statusChanged",
-        url: `${CONFIG.BASE_URL}/lifecycle/status`
+        type: "STATUS_CHANGED",
+        path: "/lifecycle/status"
       },
       {
-        type: "settingsUpdated", 
-        url: `${CONFIG.BASE_URL}/lifecycle/settings`
+        type: "SETTINGS_UPDATED", 
+        path: "/lifecycle/settings"
       },
       {
-        type: "deleted",
-        url: `${CONFIG.BASE_URL}/lifecycle/deleted`
+        type: "DELETED",
+        path: "/lifecycle/deleted"
       }
     ],
     webhooks: []

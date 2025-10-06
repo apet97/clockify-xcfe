@@ -17,7 +17,7 @@ const manifest = {
   name: ADDON_CONFIG.ADDON_NAME,
   baseUrl: ADDON_CONFIG.BASE_URL,
   description: "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
-  minimalSubscriptionPlan: ADDON_CONFIG.MIN_PLAN,
+  minimalSubscriptionPlan: "PRO",
   scopes: [
     "TIME_ENTRY_READ",
     "TIME_ENTRY_WRITE", 
@@ -56,20 +56,20 @@ const manifest = {
   }),
   lifecycle: [
     {
-      type: "installed",
-      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/installed`
+      type: "INSTALLED",
+      path: "/lifecycle/installed"
     },
     {
-      type: "statusChanged",
-      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/status`
+      type: "STATUS_CHANGED",
+      path: "/lifecycle/status"
     },
     {
-      type: "settingsUpdated",
-      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/settings`
+      type: "SETTINGS_UPDATED",
+      path: "/lifecycle/settings"
     },
     {
-      type: "deleted",
-      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/deleted`
+      type: "DELETED",
+      path: "/lifecycle/deleted"
     }
   ],
   webhooks: []
