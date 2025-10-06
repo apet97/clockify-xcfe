@@ -9,6 +9,14 @@ const encryptionKeySchema = z
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(8080),
+  BASE_URL: z.string().url().default('http://localhost:8080'),
+  
+  // Marketplace Add-on Configuration
+  ADDON_KEY: z.string().min(1).default('xcfe.example'),
+  ADDON_NAME: z.string().min(1).default('xCustom Field Expander'),
+  MIN_PLAN: z.enum(['FREE', 'BASIC', 'PRO', 'ENTERPRISE']).default('FREE'),
+  RSA_PUBLIC_KEY_PEM: z.string().min(1).describe('RSA public key for Clockify JWT verification'),
+  
   CLOCKIFY_BASE_URL: z
     .string()
     .url()
@@ -23,7 +31,7 @@ const envSchema = z.object({
   ADDON_ID: z.string().optional(),
   WEBHOOK_PUBLIC_URL: z.string().url().optional(),
   ADMIN_UI_ORIGIN: z.string().url().optional(),
-  WORKSPACE_ID: z.string().min(1),
+  WORKSPACE_ID: z.string().min(1).default('dev-workspace'),
   DATABASE_URL: z.string().min(1),
   ENCRYPTION_KEY: encryptionKeySchema,
   JWT_AUDIENCE: z.string().min(1).default('xcfe-admin-ui'),
@@ -34,7 +42,8 @@ const envSchema = z.object({
   WEBHOOK_RECONCILE: z.coerce.boolean().default(false),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   RATE_LIMIT_RPS: z.coerce.number().int().positive().default(50),
-  RATE_LIMIT_MAX_BACKOFF_MS: z.coerce.number().int().positive().default(5000)
+  RATE_LIMIT_MAX_BACKOFF_MS: z.coerce.number().int().positive().default(5000),
+  SKIP_DATABASE_CHECKS: z.coerce.boolean().default(false)
 });
 
 const parsed = envSchema.safeParse(process.env);

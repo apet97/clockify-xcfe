@@ -4,6 +4,9 @@ import pinoHttp from 'pino-http';
 import cors from 'cors';
 import { randomUUID } from 'node:crypto';
 import routes from './routes/index.js';
+import manifestRoutes from './routes/manifest.js';
+import lifecycleRoutes from './routes/lifecycle.js';
+import uiRoutes from './routes/ui.js';
 import { correlationMiddleware } from './middleware/correlation.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { logger } from './lib/logger.js';
@@ -40,6 +43,9 @@ export const createApp = (): express.Express => {
     res.json({ name: 'xCustom Field Expander API', version: '0.1.0' });
   });
 
+  app.use('/manifest', manifestRoutes);
+  app.use('/lifecycle', lifecycleRoutes);
+  app.use('/ui', uiRoutes);
   app.use('/v1', routes);
   app.use(errorHandler);
 

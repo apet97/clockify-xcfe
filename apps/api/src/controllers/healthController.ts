@@ -46,7 +46,9 @@ export const healthCheck: RequestHandler = async (_req, res) => {
   
   res.json({ 
     ok: dbHealth.reachable,
-    workspaceId: CONFIG.WORKSPACE_ID, 
+    manifest: true,
+    addonKey: CONFIG.ADDON_KEY,
+    baseUrl: CONFIG.BASE_URL,
     timestamp: new Date().toISOString(),
     db: dbHealth
   });

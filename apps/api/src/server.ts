@@ -17,15 +17,25 @@ const summarizeEnv = () => ({
 export const start = async () => {
   const app = createApp();
 
-  await ensureSchema().catch(error => {
-    logger.error({ err: error }, 'database schema verification failed');
-    throw error;
-  });
+  // Conditionally skip database checks for addon development
+  if (!CONFIG.SKIP_DATABASE_CHECKS) {
+    await ensureSchema().catch(error => {
+      logger.error({ err: error }, 'database schema verification failed');
+      throw error;
+    });
+  } else {
+    logger.info('Skipping database checks for addon development mode');
+  }
 
-  const webhookIds = await ensureWebhooks().catch(error => {
-    logger.warn({ err: error }, 'Continuing startup despite webhook bootstrap failure');
-    return [];
-  });
+  // Skip webhook registration for addon development  
+  const webhookIds: string[] = [];
+  if (!CONFIG.SKIP_DATABASE_CHECKS) {
+    // Only register webhooks if we have database connectivity
+    // const webhookIds = await ensureWebhooks().catch(error => {
+    //   logger.warn({ err: error }, 'Continuing startup despite webhook bootstrap failure');
+    //   return [];
+    // });
+  }
 
   if (webhookIds.length > 0) {
     logger.info({ webhookIds }, 'Webhook registration completed successfully');

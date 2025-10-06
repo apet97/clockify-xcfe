@@ -25,12 +25,13 @@ export const logger = pino({
       return object;
     }
   },
-  transport: isDev ? {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      translateTime: 'HH:MM:ss',
-      ignore: 'pid,hostname'
-    }
-  } : undefined
+  // Simplified for addon development - remove pino-pretty dependency
+  // transport: isDev ? {
+  //   target: 'pino-pretty',
+  //   options: {
+  //     colorize: true,
+  //     translateTime: 'HH:MM:ss',
+  //     ignore: 'pid,hostname'
+  //   }
+  // } : undefined
 });

@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "bash scripts/dev.sh",
+    "dev:addon": "node simple-addon.mjs",
+    "dev:api": "pnpm --filter @xcfe/api dev",
     "build": "pnpm -r build",
     "test": "pnpm --filter @xcfe/api test && pnpm --filter @xcfe/admin-ui test",
     "lint": "pnpm -r lint",

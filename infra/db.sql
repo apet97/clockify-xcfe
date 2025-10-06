@@ -40,3 +40,18 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 CREATE INDEX IF NOT EXISTS runs_ts_idx ON runs (ts DESC);
+
+-- Add-on installations table for marketplace lifecycle management
+CREATE TABLE IF NOT EXISTS installations (
+  addon_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  installation_token TEXT,
+  status TEXT DEFAULT 'ACTIVE',
+  settings_json JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (addon_id, workspace_id)
+);
+
+CREATE INDEX IF NOT EXISTS installations_workspace_idx ON installations (workspace_id);
+CREATE INDEX IF NOT EXISTS installations_status_idx ON installations (status);
