@@ -44,12 +44,24 @@ export const getManifest: RequestHandler = (_req, res) => {
         }
       ]
     }),
-    lifecycle: {
-      installed: `${CONFIG.BASE_URL}/lifecycle/installed`,
-      statusChanged: `${CONFIG.BASE_URL}/lifecycle/status`,
-      settingsUpdated: `${CONFIG.BASE_URL}/lifecycle/settings`,
-      deleted: `${CONFIG.BASE_URL}/lifecycle/deleted`
-    },
+    lifecycle: [
+      {
+        type: "installed",
+        url: `${CONFIG.BASE_URL}/lifecycle/installed`
+      },
+      {
+        type: "statusChanged",
+        url: `${CONFIG.BASE_URL}/lifecycle/status`
+      },
+      {
+        type: "settingsUpdated", 
+        url: `${CONFIG.BASE_URL}/lifecycle/settings`
+      },
+      {
+        type: "deleted",
+        url: `${CONFIG.BASE_URL}/lifecycle/deleted`
+      }
+    ],
     webhooks: []
   };
 

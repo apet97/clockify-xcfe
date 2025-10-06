@@ -54,12 +54,24 @@ const manifest = {
       }
     ]
   }),
-  lifecycle: {
-    installed: `${ADDON_CONFIG.BASE_URL}/lifecycle/installed`,
-    statusChanged: `${ADDON_CONFIG.BASE_URL}/lifecycle/status`,
-    settingsUpdated: `${ADDON_CONFIG.BASE_URL}/lifecycle/settings`,
-    deleted: `${ADDON_CONFIG.BASE_URL}/lifecycle/deleted`
-  },
+  lifecycle: [
+    {
+      type: "installed",
+      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/installed`
+    },
+    {
+      type: "statusChanged",
+      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/status`
+    },
+    {
+      type: "settingsUpdated",
+      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/settings`
+    },
+    {
+      type: "deleted",
+      url: `${ADDON_CONFIG.BASE_URL}/lifecycle/deleted`
+    }
+  ],
   webhooks: []
 };
 
