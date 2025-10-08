@@ -281,6 +281,8 @@ const FormulasPage: React.FC = () => {
                       <tr>
                         <th>Entry ID</th>
                         <th>Updates</th>
+                        <th>OT Multiplier</th>
+                        <th>OT Flag</th>
                         <th>Status</th>
                       </tr>
                     </thead>
@@ -291,6 +293,8 @@ const FormulasPage: React.FC = () => {
                             {outcome.entryId.slice(-8)}
                           </td>
                           <td>{outcome.updates}</td>
+                          <td>{outcome.otMultiplier != null ? outcome.otMultiplier.toFixed(2) : '—'}</td>
+                          <td>{outcome.otFlag ?? '—'}</td>
                           <td>
                             {outcome.error ? (
                               <span style={{ color: '#d73a49' }}>Error</span>

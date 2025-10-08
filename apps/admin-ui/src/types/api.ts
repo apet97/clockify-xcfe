@@ -28,18 +28,24 @@ export type BackfillResult = {
     entryId: string;
     updates: number;
     correlationId: string;
+    otMultiplier?: number;
+    otFlag?: string;
     error?: string;
   }>;
 };
 
 export type RunRecord = {
   id: string;
-  entryId: string;
+  workspaceId: string;
+  entryId?: string | null;
   userId?: string | null;
+  event?: string | null;
   status: string;
   ts: string;
   ms?: number | null;
   diff?: unknown;
+  correlationId?: string | null;
+  requestId?: string | null;
 };
 
 export type Settings = {

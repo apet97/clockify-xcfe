@@ -49,6 +49,7 @@ export type ClockifyJwtClaims = {
   addonId: string;
   workspaceId: string;
   userId?: string;
+  user?: string;
   backendUrl: string;
   reportsUrl: string;
   plan: string;
@@ -90,7 +91,7 @@ const getClockifyPublicKey = async () => {
   return clockifyPublicKey;
 };
 
-const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string) => {
+const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string, requireBackendUrl = true) => {
   if (claims.type !== 'addon') {
     throw new Error('Invalid JWT type, expected "addon"');
   }
@@ -99,16 +100,20 @@ const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string)
     throw new Error(`Invalid JWT subject, expected "${expectedSub}", got "${claims.sub}"`);
   }
 
-  if (!claims.addonId || !claims.workspaceId || !claims.backendUrl) {
-    throw new Error('Missing required JWT claims');
+  if (!claims.addonId || !claims.workspaceId) {
+    throw new Error('Missing required JWT claims (addonId, workspaceId)');
+  }
+
+  if (requireBackendUrl && !claims.backendUrl) {
+    throw new Error('Missing required JWT claim: backendUrl');
   }
 };
 
-export const verifyClockifyJwt = async (token: string, expectedSub?: string): Promise<ClockifyJwtClaims> => {
+export const verifyClockifyJwt = async (token: string, expectedSub?: string, requireBackendUrl = true): Promise<ClockifyJwtClaims> => {
   try {
     if (CONFIG.DEV_ALLOW_UNSIGNED && !CONFIG.RSA_PUBLIC_KEY_PEM) {
       const claims = decodeClockifyClaims(token);
-      validateClockifyClaims(claims, expectedSub);
+      validateClockifyClaims(claims, expectedSub, requireBackendUrl);
       return claims;
     }
 
@@ -120,7 +125,7 @@ export const verifyClockifyJwt = async (token: string, expectedSub?: string): Pr
     });
 
     const claims = payload as ClockifyJwtClaims;
-    validateClockifyClaims(claims, expectedSub);
+    validateClockifyClaims(claims, expectedSub, requireBackendUrl);
     return claims;
   } catch (error) {
     throw new Error(`JWT verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

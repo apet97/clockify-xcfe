@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { CONFIG } from '../config/index.js';
 import { clockifyClient, RateLimitError } from '../lib/clockifyClient.js';
 import { FormulaEngine, type FormulaDefinition } from '../lib/formulaEngine.js';
+import { computeOtSummary, buildReferenceEntry, type OtReferenceEntry, type DetailedReportEntry, type OtSummary } from '../lib/otRules.js';
+import { toDate } from '../lib/timeUtils.js';
+import type { ClockifyTimeEntry } from '../types/clockify.js';
 import { fetchFormulaEngineInputs } from './formulaService.js';
 import { recordRun } from './runService.js';
 import { logger } from '../lib/logger.js';
@@ -27,6 +30,8 @@ export type BackfillResult = {
     entryId: string;
     updates: number;
     correlationId: string;
+    otMultiplier?: number;
+    otFlag?: string;
     error?: string;
   }>;
 };
@@ -34,7 +39,8 @@ export type BackfillResult = {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const formatDateForAPI = (date: Date): string => {
-  return date.toISOString().split('T')[0] + 'T00:00:00Z';
+  // Preserve the full timestamp (including end-of-day boundaries) while trimming milliseconds
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 };
 
 const getDaysBetween = (start: Date, end: Date): Date[] => {
@@ -60,41 +66,67 @@ const processEntriesPage = async (
   workspaceId: string,
   engine: FormulaEngine,
   formulas: FormulaDefinition[],
-  entries: Array<{ id: string }>,
+  reportEntries: DetailedReportEntry[],
   dryRun: boolean,
-  correlationId: string
+  correlationId: string,
+  state: { lastEntryByUser: Map<string, OtReferenceEntry> }
 ): Promise<{
   processed: number;
   updated: number;
   errors: number;
-  outcomes: Array<{ entryId: string; updates: number; correlationId: string; error?: string }>;
+  outcomes: Array<{ entryId: string; updates: number; correlationId: string; otMultiplier?: number; otFlag?: string; error?: string }>
 }> => {
   let processed = 0;
   let updated = 0;
   let errors = 0;
-  const outcomes: Array<{ entryId: string; updates: number; correlationId: string; error?: string }> = [];
+  const outcomes: Array<{ entryId: string; updates: number; correlationId: string; otMultiplier?: number; otFlag?: string; error?: string }> = [];
 
-  for (const entry of entries) {
+  const sortedEntries = [...reportEntries].sort((a, b) => {
+    const aStart = toDate(a.timeInterval?.start ?? undefined)?.getTime() ?? 0;
+    const bStart = toDate(b.timeInterval?.start ?? undefined)?.getTime() ?? 0;
+    return aStart - bStart;
+  });
+
+  for (const entry of sortedEntries) {
+    if (!entry.id) continue;
     const entryCorrelationId = `${correlationId}-${entry.id}`;
-    
+    let liveEntry: ClockifyTimeEntry | null = null;
+    let otSummary: OtSummary | null = null;
+
     try {
-      // Get fresh entry data
-      const liveEntry = await clockifyClient.getTimeEntry(workspaceId, entry.id, entryCorrelationId);
+      liveEntry = await clockifyClient.getTimeEntry(workspaceId, entry.id, entryCorrelationId);
       processed++;
 
-      // Evaluate formulas
-      const { updates } = engine.evaluate(formulas, { timeEntry: liveEntry }, 'TIME_ENTRY_UPDATED');
-      
+      const previousReference = state.lastEntryByUser.get(liveEntry.userId) ?? null;
+      const summary = await computeOtSummary({
+        workspaceId,
+        timeEntry: liveEntry,
+        reportEntries,
+        previousEntry: previousReference ?? null
+      });
+      otSummary = summary;
+
+      const { updates } = engine.evaluate(formulas, { timeEntry: liveEntry, otSummary: summary }, 'TIME_ENTRY_UPDATED');
+
       if (updates.length === 0) {
-        outcomes.push({ entryId: entry.id, updates: 0, correlationId: entryCorrelationId });
+        outcomes.push({
+          entryId: entry.id,
+          updates: 0,
+          correlationId: entryCorrelationId,
+          otMultiplier: summary.multiplier,
+          otFlag: summary.flag
+        });
+        const reference = buildReferenceEntry(liveEntry);
+        if (reference?.end) {
+          state.lastEntryByUser.set(liveEntry.userId, reference);
+        }
         continue;
       }
 
-      // Apply updates if not dry run
       if (!dryRun) {
         let retryCount = 0;
         const maxRetries = 3;
-        
+
         while (retryCount <= maxRetries) {
           try {
             await clockifyClient.patchTimeEntryCustomFields(
@@ -103,24 +135,26 @@ const processEntriesPage = async (
               { customFieldValues: updates.map((item) => ({ customFieldId: item.customFieldId, value: item.value })) },
               { correlationId: entryCorrelationId }
             );
-            
-            // Record successful run
+
             await recordRun({
+              workspaceId,
               entryId: liveEntry.id,
               userId: liveEntry.userId,
               status: 'success',
               ms: 0,
-              diff: { updates, backfill: true }
+              event: 'BACKFILL_APPLY',
+              correlationId: entryCorrelationId,
+              diff: { updates, backfill: true, ot: summary }
             });
-            
+
             break;
           } catch (error) {
             if (error instanceof RateLimitError && retryCount < maxRetries) {
               const delayMs = error.retryAfterMs || 1000;
-              logger.warn({ 
-                entryId: entry.id, 
-                retryAfterMs: delayMs, 
-                attempt: retryCount + 1 
+              logger.warn({
+                entryId: entry.id,
+                retryAfterMs: delayMs,
+                attempt: retryCount + 1
               }, 'Rate limited during backfill patch, retrying');
               await sleep(delayMs);
               retryCount++;
@@ -132,33 +166,48 @@ const processEntriesPage = async (
       }
 
       updated++;
-      outcomes.push({ entryId: entry.id, updates: updates.length, correlationId: entryCorrelationId });
+      outcomes.push({
+        entryId: entry.id,
+        updates: updates.length,
+        correlationId: entryCorrelationId,
+        otMultiplier: summary.multiplier,
+        otFlag: summary.flag
+      });
+
+      const reference = buildReferenceEntry(liveEntry);
+      if (reference?.end) {
+        state.lastEntryByUser.set(liveEntry.userId, reference);
+      }
 
     } catch (error) {
       errors++;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error({ 
-        err: error, 
-        entryId: entry.id, 
-        correlationId: entryCorrelationId 
+      logger.error({
+        err: error,
+        entryId: entry.id,
+        correlationId: entryCorrelationId
       }, 'Failed to process entry during backfill');
-      
-      outcomes.push({ 
-        entryId: entry.id, 
-        updates: 0, 
-        correlationId: entryCorrelationId, 
-        error: errorMessage 
+
+      outcomes.push({
+        entryId: entry.id,
+        updates: 0,
+        correlationId: entryCorrelationId,
+        otMultiplier: otSummary?.multiplier ?? undefined,
+        otFlag: otSummary?.flag ?? undefined,
+        error: errorMessage
       });
 
-      // Record failed run for non-dry runs
       if (!dryRun) {
         try {
           await recordRun({
+            workspaceId,
             entryId: entry.id,
-            userId: 'unknown',
+            userId: liveEntry?.userId ?? 'unknown',
             status: 'error',
             ms: 0,
-            diff: { error: errorMessage, backfill: true }
+            event: 'BACKFILL_APPLY',
+            correlationId: entryCorrelationId,
+            diff: { error: errorMessage, backfill: true, ot: otSummary ?? undefined }
           });
         } catch (recordError) {
           logger.error({ err: recordError, entryId: entry.id }, 'Failed to record error run');
@@ -204,6 +253,7 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
     let totalUpdated = 0;
     const dayResults: BackfillResult['dayResults'] = [];
     const allOutcomes: BackfillResult['outcomes'] = [];
+    const state = { lastEntryByUser: new Map<string, OtReferenceEntry>() };
 
     // Process each day
     for (const day of days) {
@@ -261,21 +311,21 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
           throw new Error('Failed to get report after retries');
         }
 
-        const entries = report.timeEntries || [];
-        dayScanned += entries.length;
+        const reportEntries = (report.timeEntries ?? []) as DetailedReportEntry[];
+        dayScanned += reportEntries.length;
 
-        if (entries.length === 0) {
+        if (reportEntries.length === 0) {
           break; // No more entries for this day
         }
 
-        // Process this page of entries
         const pageResult = await processEntriesPage(
           workspaceId,
           engine,
           formulas,
-          entries,
+          reportEntries,
           params.dryRun ?? false,
-          `${correlationId}-day-${day.toISOString().split('T')[0]}-page-${page}`
+          `${correlationId}-day-${day.toISOString().split('T')[0]}-page-${page}`,
+          state
         );
 
         dayUpdated += pageResult.updated;
@@ -283,7 +333,7 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
         allOutcomes.push(...pageResult.outcomes);
 
         // Check if we've reached the end of results
-        if (entries.length < pageSize) {
+        if (reportEntries.length < pageSize) {
           break;
         }
 

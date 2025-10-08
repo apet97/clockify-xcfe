@@ -1,4 +1,4 @@
-const defaultBase = 'http://localhost:4000/v1';
+const defaultBase = 'http://localhost:8080/v1';
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? defaultBase;
 
 const normalize = (path: string) => {

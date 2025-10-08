@@ -31,15 +31,21 @@ CREATE TABLE IF NOT EXISTS dictionaries (
 
 CREATE TABLE IF NOT EXISTS runs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  workspace_id TEXT NOT NULL,
   entry_id TEXT,
   user_id TEXT,
-  ts TIMESTAMPTZ DEFAULT NOW(),
+  event TEXT,
   status TEXT NOT NULL,
   ms INTEGER,
-  diff JSONB
+  diff JSONB,
+  correlation_id TEXT,
+  request_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS runs_ts_idx ON runs (ts DESC);
+CREATE INDEX IF NOT EXISTS runs_workspace_entry_idx ON runs (workspace_id, entry_id);
+CREATE INDEX IF NOT EXISTS runs_created_at_idx ON runs (created_at DESC);
+CREATE INDEX IF NOT EXISTS runs_correlation_idx ON runs (correlation_id);
 
 -- Add-on installations table for marketplace lifecycle management
 CREATE TABLE IF NOT EXISTS installations (

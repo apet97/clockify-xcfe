@@ -55,7 +55,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     errorDetails,
     path: req.path, 
     method: req.method,
-    correlationId: req.correlationId 
+    correlationId: (req as any).correlationId 
   }, 'HTTP error');
 
   res.status(errorDetails.status).json({
@@ -63,7 +63,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       code: errorDetails.code,
       message: errorDetails.message,
       details: errorDetails.details,
-      correlationId: req.correlationId,
+      correlationId: (req as any).correlationId,
       timestamp: new Date().toISOString()
     }
   });

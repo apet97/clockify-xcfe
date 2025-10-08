@@ -8,7 +8,7 @@ class LifecycleAuthError extends Error {}
 
 const verifyLifecycleToken = async (token: string) => {
   try {
-    return await verifyClockifyJwt(token, CONFIG.ADDON_KEY);
+    return await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false); // Don't require backendUrl for lifecycle tokens
   } catch (error) {
     throw new LifecycleAuthError(
       `Lifecycle token verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`

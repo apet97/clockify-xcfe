@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { CONFIG } from '../config/index.js';
 
 export const verifyClockifySignature = (rawBody: string, signatureHeader?: string | null): boolean => {
@@ -12,9 +12,27 @@ export const verifyClockifySignature = (rawBody: string, signatureHeader?: strin
   return timingSafeEquals(computed, signature);
 };
 
-const timingSafeEquals = (a: string, b: string) => {
-  const buffA = Buffer.from(a, 'utf8');
-  const buffB = Buffer.from(b, 'utf8');
-  if (buffA.length !== buffB.length) return false;
-  return Buffer.compare(buffA, buffB) === 0;
+const HEX_REGEX = /^[0-9a-f]+$/i;
+
+const timingSafeEquals = (expectedHex: string, receivedHex: string) => {
+  const normalizedExpected = expectedHex.toLowerCase();
+  const normalizedReceived = receivedHex.toLowerCase();
+
+  if (
+    normalizedExpected.length !== normalizedReceived.length ||
+    normalizedExpected.length % 2 !== 0 ||
+    !HEX_REGEX.test(normalizedExpected) ||
+    !HEX_REGEX.test(normalizedReceived)
+  ) {
+    return false;
+  }
+
+  try {
+    const expectedBuffer = Buffer.from(normalizedExpected, 'hex');
+    const receivedBuffer = Buffer.from(normalizedReceived, 'hex');
+    if (expectedBuffer.length !== receivedBuffer.length) return false;
+    return timingSafeEqual(expectedBuffer, receivedBuffer);
+  } catch {
+    return false;
+  }
 };

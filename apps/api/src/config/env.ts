@@ -30,6 +30,7 @@ const envSchema = z.object({
     .string()
     .min(1)
     .optional()
+    .or(z.literal(''))
     .describe('RSA public key for Clockify JWT verification'),
   
   CLOCKIFY_BASE_URL: z

@@ -3,6 +3,316 @@ import { verifyClockifyJwt } from '../lib/jwt.js';
 import { CONFIG } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 
+type SettingsFieldConfig = {
+  key: string;
+  label: string;
+  description?: string;
+  defaultValue?: string;
+  required?: boolean;
+};
+
+type SettingsTabConfig = {
+  name: string;
+  description?: string;
+  fields?: SettingsFieldConfig[];
+};
+
+export const renderSettings: RequestHandler = async (req, res) => {
+  const authToken = req.query.auth_token as string;
+  const config = req.params.config;
+  
+  if (!authToken) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>xCFE Settings - Error</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+          .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="error">
+          <h3>Authentication Error</h3>
+          <p>Missing authentication token. Please refresh the page.</p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+
+  let settingsConfig = null;
+  if (config) {
+    try {
+      const decodedConfig = decodeURIComponent(config);
+      settingsConfig = JSON.parse(decodedConfig);
+    } catch (error) {
+      console.error('Failed to parse settings config:', error);
+    }
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>xCFE Settings</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background: #ffffff;
+          color: #333;
+          line-height: 1.5;
+          padding: 20px;
+        }
+        
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+        }
+        
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .title {
+          font-size: 24px;
+          font-weight: 600;
+          color: #1976d2;
+          margin-bottom: 8px;
+        }
+        
+        .subtitle {
+          font-size: 14px;
+          color: #666;
+        }
+        
+        .tab {
+          background: #f8f9fa;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          overflow: hidden;
+        }
+        
+        .tab-header {
+          background: #1976d2;
+          color: white;
+          padding: 15px 20px;
+          font-weight: 600;
+        }
+        
+        .tab-description {
+          padding: 15px 20px;
+          color: #666;
+          font-size: 14px;
+          border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .field {
+          padding: 20px;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .field:last-child {
+          border-bottom: none;
+        }
+        
+        .field-label {
+          font-weight: 600;
+          margin-bottom: 5px;
+          color: #333;
+        }
+        
+        .field-description {
+          font-size: 13px;
+          color: #666;
+          margin-bottom: 10px;
+        }
+        
+        .field-input {
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+        
+        .field-input:focus {
+          outline: none;
+          border-color: #1976d2;
+          box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+        
+        .actions {
+          text-align: center;
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #e0e0e0;
+        }
+        
+        .button {
+          padding: 12px 24px;
+          background: #1976d2;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          margin: 0 10px;
+          transition: background-color 0.2s;
+        }
+        
+        .button:hover {
+          background: #1565c0;
+        }
+        
+        .button.secondary {
+          background: #f5f5f5;
+          color: #333;
+          border: 1px solid #ddd;
+        }
+        
+        .button.secondary:hover {
+          background: #eeeeee;
+        }
+        
+        .status {
+          margin-top: 20px;
+          padding: 10px;
+          border-radius: 4px;
+          display: none;
+        }
+        
+        .status.success {
+          background: #e8f5e8;
+          color: #2e7d32;
+          border: 1px solid #c8e6c9;
+        }
+        
+        .status.error {
+          background: #ffebee;
+          color: #d32f2f;
+          border: 1px solid #ffcdd2;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="title">xCFE Settings</div>
+          <div class="subtitle">Configure your Custom Field Expander preferences</div>
+        </div>
+        
+        <form id="settingsForm">
+          ${settingsConfig && settingsConfig.tabs ? settingsConfig.tabs.map((tab: SettingsTabConfig) => `
+            <div class="tab">
+              <div class="tab-header">${tab.name}</div>
+              ${tab.description ? `<div class="tab-description">${tab.description}</div>` : ''}
+              ${tab.fields ? tab.fields.map((field: SettingsFieldConfig) => `
+                <div class="field">
+                  <div class="field-label">${field.label}</div>
+                  ${field.description ? `<div class="field-description">${field.description}</div>` : ''}
+                  <input 
+                    type="text" 
+                    class="field-input" 
+                    name="${field.key}" 
+                    value="${field.defaultValue || ''}"
+                    ${field.required ? 'required' : ''}
+                    placeholder="${field.label}"
+                  />
+                </div>
+              `).join('') : ''}
+            </div>
+          `).join('') : '<div class="tab"><div class="tab-header">No Settings Available</div><div class="field">No configuration fields are currently available.</div></div>'}
+        </form>
+        
+        <div class="actions">
+          <button type="button" class="button" onclick="saveSettings()">Save Settings</button>
+          <button type="button" class="button secondary" onclick="resetSettings()">Reset to Defaults</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+      </div>
+
+      <script>
+        const authToken = '${authToken}';
+        
+        async function saveSettings() {
+          const form = document.getElementById('settingsForm');
+          const formData = new FormData(form);
+          const settings = {};
+          
+          for (const [key, value] of formData.entries()) {
+            settings[key] = value;
+          }
+          
+          try {
+            showStatus('Saving settings...', 'info');
+            
+            // Here you would typically send the settings to your API
+            // For now, we'll just simulate a successful save
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            showStatus('Settings saved successfully!', 'success');
+            
+            // In a real implementation, you might want to notify the parent window
+            if (window.parent && window.parent.postMessage) {
+              window.parent.postMessage({
+                action: 'settingsUpdated',
+                settings: settings
+              }, '*');
+            }
+          } catch (error) {
+            showStatus('Failed to save settings: ' + error.message, 'error');
+          }
+        }
+        
+        function resetSettings() {
+          const form = document.getElementById('settingsForm');
+          const inputs = form.querySelectorAll('input');
+          
+          inputs.forEach(input => {
+            // Reset to default value from the field configuration
+            const defaultValue = input.getAttribute('data-default') || '';
+            input.value = defaultValue;
+          });
+          
+          showStatus('Settings reset to defaults', 'info');
+        }
+        
+        function showStatus(message, type) {
+          const status = document.getElementById('status');
+          status.textContent = message;
+          status.className = 'status ' + type;
+          status.style.display = 'block';
+          
+          if (type === 'success' || type === 'info') {
+            setTimeout(() => {
+              status.style.display = 'none';
+            }, 3000);
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `;
+
+  res.send(html);
+};
+
 export const renderSidebar: RequestHandler = async (req, res) => {
   const authToken = req.query.auth_token as string;
   
@@ -29,20 +339,21 @@ export const renderSidebar: RequestHandler = async (req, res) => {
   }
 
   try {
-    // In development, we can show a simplified UI even without token verification
+    // Try to parse the JWT token to get real workspace/user data
     const isDev = CONFIG.NODE_ENV === 'development';
     let claims = null;
     let backendUrl = CONFIG.CLOCKIFY_BASE_URL;
     let workspaceId = CONFIG.WORKSPACE_ID || 'dev-workspace';
     let userId = 'dev-user';
 
-    if (!isDev) {
-      try {
-        claims = await verifyClockifyJwt(authToken, CONFIG.ADDON_KEY);
-        backendUrl = claims.backendUrl;
-        workspaceId = claims.workspaceId;
-        userId = claims.userId || 'unknown';
-      } catch (error) {
+    // Always try to parse the token if available, even in dev mode
+    try {
+      claims = await verifyClockifyJwt(authToken, CONFIG.ADDON_KEY);
+      backendUrl = claims.backendUrl || CONFIG.CLOCKIFY_BASE_URL;
+      workspaceId = claims.workspaceId;
+      userId = claims.userId || claims.user || 'unknown';
+    } catch (error) {
+      if (!isDev) {
         logger.warn({ err: error }, 'Failed to verify auth token in UI component');
         return res.status(401).send(`
           <!DOCTYPE html>
@@ -275,14 +586,14 @@ export const renderSidebar: RequestHandler = async (req, res) => {
               const to = new Date();
               const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
               
-              const url = backendUrl + '/workspaces/' + workspaceId + '/time-entries?' + 
+              // Use our proxy endpoint instead of calling Clockify directly
+              const url = window.location.origin + '/v1/proxy/time-entries?' + 
                 'start=' + from.toISOString() + 
                 '&end=' + to.toISOString() + 
-                '&user-id=' + userId;
+                '&auth_token=' + encodeURIComponent(authToken);
               
               const response = await fetch(url, {
                 headers: {
-                  'X-Addon-Token': authToken,
                   'Accept': 'application/json'
                 }
               });

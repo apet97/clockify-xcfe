@@ -1,81 +1,105 @@
 # xCustom Field Expander (xCFE)
 
-xCustom Field Expander bridges Clockify webhooks with a formula engine that computes, validates, and writes custom field values back to time entries. It also ships an iframe-ready admin UI for managing formulas, dictionaries, dry-runs, backfills, and audit trails inside Clockify.
+xCustom Field Expander (xCFE) keeps Clockify time-entry custom fields in sync with your business rules. Webhooks trigger a hardened formula engine that evaluates overtime multipliers, applies validations, and writes changes back through the Clockify API. An iframe-ready Admin UI lets operators manage formulas, dictionaries, backfills, and audit logs without leaving Clockify.
 
-- Formula engine supports arithmetic, logical helpers, date utilities, and `CF("Field")` lookups.
-- Validation enforces dropdown dictionaries and numeric ranges with warn/block/autofix modes.
-- API delivers webhook ingestion, formula CRUD, dictionary management, backfill orchestration, and magic-link auth for the admin UI.
-- Admin UI (Vite + React) is designed for Clockify iframe embedding and uses the API for secure operations.
+## Quickstart
+```bash
+corepack enable pnpm
+pnpm install
+cp .env.sample .env   # fill values from the table below
+pnpm run dev          # boots Postgres (if available), API watcher, Admin UI
+```
+The dev script automatically skips Postgres bootstrap when the Docker daemon is unavailable. Once the servers are ready you can:
+- Open the Admin UI at `http://localhost:5173`.
+- Request a magic-link session token via `POST /v1/auth/magic-link`.
+- POST real webhook samples to `http://localhost:8080/v1/webhooks/clockify` (see `docs/Clockify_Webhook_JSON_Samples (1).md`).
 
-## Prerequisites
-- Node.js 20+
-- pnpm 8 (`corepack enable pnpm`)
-- Docker (optional, for Postgres)
-- Clockify workspace ID, add-on token or API key (see `docs/https-docs-clockify-me.md` for authentication reference)
+## Environment Variables
+| Key | Description |
+| --- | --- |
+| `NODE_ENV` | `development`, `test`, or `production`. Defaults to `development`. |
+| `PORT` | API HTTP port (default `8080`). |
+| `BASE_URL` | Public base URL used for redirects and manifest responses. |
+| `WORKSPACE_ID` | Target Clockify workspace for formulas, webhooks, and audits. |
+| `CLOCKIFY_BASE_URL` | Base REST endpoint, defaults to `https://api.clockify.me/api/v1`. |
+| `CLOCKIFY_REGION` | Optional region code `euc1`, `use2`, `euw2`, or `apse2` to route REST + Reports APIs. |
+| `ADDON_TOKEN` / `API_KEY` | Exactly one credential used for all outbound Clockify requests. |
+| `ADDON_ID` | Add-on identifier used when reconciling webhooks. |
+| `WEBHOOK_PUBLIC_URL` | Public URL pointing to this API (used by auto-registrar). |
+| `CLOCKIFY_WEBHOOK_SECRET` | HMAC secret for verifying incoming webhooks. |
+| `ENCRYPTION_KEY` | 32+ character secret used for AES-GCM at-rest storage and JWT signing. |
+| `DATABASE_URL` | Postgres connection string (e.g. `postgres://postgres:postgres@localhost:5432/xcfe`). |
+| `ADMIN_UI_ORIGIN` | Comma-separated list of origins allowed to call the API (iframe host). |
+| `WEBHOOK_RECONCILE` | `true` to delete unknown webhooks during startup. |
+| `DEV_ALLOW_UNSIGNED` | Development escape hatch to bypass webhook signatures & lifecycle JWTs. |
+| `RATE_LIMIT_RPS` | Global Clockify RPS ceiling (default 50). |
+| `RATE_LIMIT_MAX_BACKOFF_MS` | Cap for exponential backoff retries (default 5000). |
 
-## Getting Started
-1. Clone the repo and install dependencies:
-   ```bash
-   pnpm install
-   ```
-2. Copy `.env.sample` to `.env` and fill in:
-   - `WORKSPACE_ID`
-   - `DATABASE_URL`
-   - `ENCRYPTION_KEY` (32+ chars)
-   - `ADDON_TOKEN` or `API_KEY`
-   - `ADDON_ID` and `WEBHOOK_PUBLIC_URL` for automatic webhook bootstrap
-   - Optional `CLOCKIFY_REGION` to match EU (`euc1`), USA (`use2`), UK (`euw2`), or AU (`apse2`) API hosts referenced in the Clockify docs.
-3. Launch local development (spawns Postgres via Docker, API watcher, and admin UI dev server):
-   ```bash
-   bash scripts/dev.sh
-   ```
-4. Visit the admin UI at `http://localhost:5173` and sign in with a magic link token from `POST /v1/auth/magic-link`.
+## Clockify Region Matrix
+| Region | REST Base | Reports Base |
+| --- | --- | --- |
+| `use2` (USA) | `https://use2-api.clockify.me/api/v1` | `https://use2-reports.api.clockify.me/v1` |
+| `euc1` (EU)  | `https://euc1-api.clockify.me/api/v1` | `https://euc1-reports.api.clockify.me/v1` |
+| `euw2` (UK)  | `https://euw2-api.clockify.me/api/v1` | `https://euw2-reports.api.clockify.me/v1` |
+| `apse2` (AU) | `https://apse2-api.clockify.me/api/v1` | `https://apse2-reports.api.clockify.me/v1` |
+If no region is supplied the API uses the generic `CLOCKIFY_BASE_URL` and automatically derives the matching Reports host for backfill jobs.
 
-## Available Commands
-- `pnpm run dev` – orchestrate Postgres + API + admin UI
-- `pnpm run build` – compile API and admin UI bundles
-- `pnpm run test` – run Vitest suites (`tests/formulas.spec.ts`, `tests/webhook.spec.ts`)
-- `pnpm run lint` – placeholder (extend with ESLint if desired)
+## Commands
+| Command | Purpose |
+| --- | --- |
+| `pnpm run dev` | Spins up Postgres (when Docker daemon is running), runs migrations, watches API + Admin UI. |
+| `pnpm run build` | Builds API and Admin UI bundles. |
+| `pnpm --filter @xcfe/api typecheck` | Strict TypeScript check for the API package. |
+| `pnpm run test` | Executes Vitest suites for API and Admin UI. |
+| `pnpm --filter @xcfe/api test -- --watch` | Focused API test loop. |
+| `pnpm --filter @xcfe/admin-ui dev` | Standalone Admin UI dev server. |
+| `scripts/seed-demo.sh` | Seeds Overtime demo formulas/dictionaries for the configured workspace. |
 
-## Database & Seeding
-- Schema is defined in `infra/db.sql`.
-- Run `scripts/seed-demo.sh` after configuring `.env` to populate sample formulas/dictionaries (Amount & OTFlag examples).
-- Inspect audit logs via `GET /v1/runs` or the admin UI Audit tab.
+## Formula Engine & OT Rules
+- Helpers: `ROUND`, `MIN`, `MAX`, `IF`, `AND`, `OR`, `NOT`, `IN`, `REGEXMATCH`, `DATE`, `HOUR`, `WEEKDAY`, `WEEKNUM`, plus `CF("Field")` lookups.
+- Formulas now receive overtime metadata via `OT.*` and `Shift.*` scopes. The built-in OT summary computes:
+  - Daily hour thresholds (≤10h ⇒ 1.0, 10-14 ⇒ 1.5, >14 ⇒ 2.0).
+  - Second-shift bump when rest gap < 8 hours (minimum 1.5× multiplier).
+  - Local-day segmentation using workspace timezone offsets.
+- `scripts/seed-demo.sh` installs three default formulas:
+  1. `OTMultiplier = OT.multiplier`
+  2. `Amount = ROUND(Duration.h * CF("Rate") * OT.multiplier, 2)`
+  3. `OTFlag = OT.flag`
+  and dictionary definitions for `Rate`, `OTMultiplier`, `Amount`, and `OTFlag` (`REG`, `OT`, `DT`).
 
-## Webhooks & Formula Flow
-1. Clockify delivers events like `NEW_TIME_ENTRY`, `NEW_TIMER_STARTED`, and `TIME_ENTRY_UPDATED` (see real payloads in `docs/Clockify_Webhook_JSON_Samples (1).md`).
-2. `/v1/webhooks/clockify` verifies the signature (if `CLOCKIFY_WEBHOOK_SECRET` configured), fetches the latest time entry, evaluates formulas, validates results, and issues a single PATCH with updated `customFieldValues`.
-3. Each run records diagnostics and diffs in the `runs` table for auditability.
+## Request Lifecycles
+1. **Webhook ingest** (`POST /v1/webhooks/clockify`)
+   - Validates `X-Clockify-Signature` and add-on token.
+  - Fetches the live entry, computes OT summary + formulas, and diff hashes custom fields.
+  - Applies a single PATCH when changes exist, using per-workspace rate limiting and fingerprinted idempotency to ignore duplicate webhooks.
+  - Persists run metadata with correlation IDs, OT context, and diff snapshots.
+2. **Backfill jobs** (`POST /v1/backfill`)
+   - Iterates detailed report pages per-day, respecting rate limits and Retry-After headers.
+   - Reuses the same OT + formula pipeline in dry-run (preview) or apply mode, recording audit entries for every mutation or failure.
+3. **Admin UI**
+   - Magic-link auth issues short-lived HS256 tokens (`POST /v1/auth/magic-link`).
+   - SPA endpoints: `/v1/formulas`, `/v1/dictionaries`, `/v1/backfill`, `/v1/runs`, `/v1/sites/health`, `/v1/settings`, `/v1/proxy/time-entries`.
 
-## Managing Formulas
-- `GET /v1/formulas` / `POST /v1/formulas` / `PUT /v1/formulas/:id` / `DELETE /v1/formulas/:id`
-- Use `CF("Field")` references within expressions. Supported helpers: `ROUND`, `MIN`, `MAX`, `IF`, `AND`, `OR`, `NOT`, `IN`, `REGEXMATCH`, `DATE`, `HOUR`, `WEEKNUM`, `WEEKDAY`.
-- Examples shipped via `scripts/seed-demo.sh`:
-  - `Amount = ROUND(Duration.h * CF("Rate"), 2)`
-  - `OTFlag = IF(Duration.h > 8, "OT", "REG")`
-  - `Weekend = IF(IN(WEEKDAY(Start.tz), 6, 7), "Weekend", "Weekday")`
-
-## Backfills & Dry Runs
-- `POST /v1/backfill` accepts `{ from, to, userId?, dryRun }`.
-- Dry runs preview diffs without PATCH requests; actual backfills apply updates and log results.
-- Admin UI provides both CLI-free flows.
+## Audit Trail
+The `runs` table now stores `workspace_id`, `event`, `corrrelation_id`, `request_id`, `diff`, and fingerprints (for webhook idempotency). The Admin UI’s Audit log exposes these fields, and API consumers can page via `GET /v1/runs?limit=...`.
 
 ## Deployment Notes
-- Update `infra/manifest.json` with production webhook/admin URLs before submitting to the marketplace.
-- Respect Clockify’s 50 rps add-on rate limit; the API queues requests with jittered retries for 429 responses (implementation references `docs/https-docs-clockify-me.md`).
-- Configure region-specific hosts or rate limits per the official documentation (link above) to avoid cross-region latency.
+- Update `infra/manifest.json` before submitting to Clockify — populate production iframe and webhook URLs.
+- Respect Clockify’s 50 RPS add-on rate limit; the client enforces per-workspace throttling with jittered exponential backoff.
+- Use `scripts/verify-env.sh` in CI to enforce required secrets.
+- Provision Postgres with the latest `infra/db.sql` schema (includes OT run metadata indexes).
 
-## Testing Webhooks Locally
-1. Start the API (`pnpm run dev`).
-2. Use `curl` to POST sample payloads (from `docs/Clockify_Webhook_JSON_Samples (1).md`) to `http://localhost:4000/v1/webhooks/clockify`.
-3. Check `runs` table or `GET /v1/runs` to confirm outcomes and inspect diffs.
-
-## Security
-- Secrets stay in environment variables; `ENCRYPTION_KEY` drives AES-GCM at-rest storage and JWT signing.
-- Webhook signature validation via `X-Clockify-Signature` (HMAC SHA-256) is enabled when `CLOCKIFY_WEBHOOK_SECRET` is set.
-- Audit trails omit PII beyond Clockify identifiers.
+## Troubleshooting
+| Symptom | Recommended Action |
+| --- | --- |
+| Docker daemon not running | `scripts/dev.sh` will skip Postgres bootstrap; start Docker or supply external `DATABASE_URL`. |
+| Webhooks rejected with 401 | Ensure `CLOCKIFY_WEBHOOK_SECRET` matches Clockify portal; disable via `DEV_ALLOW_UNSIGNED=true` only in dev. |
+| Duplicate PATCHes logged | Review run diff fingerprint in `/v1/runs`; webhook handler caches fingerprints for 5 minutes to short-circuit retries. |
+| Rate limit errors | Client auto-retries 429s. For sustained bursts consider lowering `RATE_LIMIT_RPS` or pausing upstream producers. |
 
 ## Further Reading
-- [`docs/https-docs-clockify-me.md`](docs/https-docs-clockify-me.md) – Clockify API surface, auth, rate limits, and webhook requirements.
-- [`docs/Clockify_Webhook_JSON_Samples (1).md`](docs/Clockify_Webhook_JSON_Samples%20(1).md) – Real webhook payloads for testing and fixture generation.
-- [`docs/MARKETPLACE_LAUNCH.md`](docs/MARKETPLACE_LAUNCH.md) – Step-by-step launch plan and submission checklist.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) – component topology, OT flow diagrams, database schema.
+- [`NOTES.md`](NOTES.md) – file-by-file repository notes captured during inventory.
+- [`docs/https-docs-clockify-me.md`](docs/https-docs-clockify-me.md) – Clockify API digest.
+- [`docs/Clockify_Webhook_JSON_Samples (1).md`](docs/Clockify_Webhook_JSON_Samples%20(1).md) – webhook fixtures used in tests.
+- [`DX.md`](DX.md) – developer experience cheatsheet (commands, linting, release checklist).

@@ -12,7 +12,13 @@ fi
 cd "$ROOT_DIR"
 
 if command -v docker >/dev/null 2>&1; then
-  docker compose up -d db adminer >/dev/null 2>&1 || docker-compose up -d db adminer >/dev/null 2>&1
+  if docker info >/dev/null 2>&1; then
+    docker compose up -d db adminer >/dev/null 2>&1 || docker-compose up -d db adminer >/dev/null 2>&1
+  else
+    echo '⚠️  Docker daemon not running; skipping Postgres/Adminer startup' >&2
+  fi
+else
+  echo '⚠️  Docker CLI not found; skipping Postgres/Adminer startup' >&2
 fi
 
 pnpm install

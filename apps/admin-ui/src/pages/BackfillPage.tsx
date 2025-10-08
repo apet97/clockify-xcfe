@@ -128,6 +128,8 @@ const BackfillPage: React.FC = () => {
                     <tr>
                       <th>Entry ID</th>
                       <th>Updates</th>
+                      <th>OT Multiplier</th>
+                      <th>OT Flag</th>
                       <th>Status</th>
                       <th>Correlation ID</th>
                     </tr>
@@ -139,6 +141,8 @@ const BackfillPage: React.FC = () => {
                           {item.entryId.slice(-8)}
                         </td>
                         <td>{item.updates}</td>
+                        <td>{item.otMultiplier != null ? item.otMultiplier.toFixed(2) : '—'}</td>
+                        <td>{item.otFlag ?? '—'}</td>
                         <td>
                           {item.error ? (
                             <span style={{ color: '#d73a49' }}>Error</span>

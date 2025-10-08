@@ -25,22 +25,37 @@ fi
 psql "$DATABASE_URL" <<SQL
 INSERT INTO formulas (workspace_id, field_key, expr, priority, on_events)
 VALUES
-  ('$WORKSPACE_ID', 'Amount', $$ROUND(Duration.h * CF("Rate"), 2)$$, 10, ARRAY['NEW_TIME_ENTRY','TIME_ENTRY_UPDATED'])
+  ('$WORKSPACE_ID', 'OTMultiplier', $$OT.multiplier$$, 5, ARRAY['NEW_TIME_ENTRY','TIME_ENTRY_UPDATED'])
 ON CONFLICT (workspace_id, field_key) DO UPDATE SET expr = EXCLUDED.expr, priority = EXCLUDED.priority, on_events = EXCLUDED.on_events;
 
 INSERT INTO formulas (workspace_id, field_key, expr, priority, on_events)
 VALUES
-  ('$WORKSPACE_ID', 'OTFlag', $$IF(Duration.h > 8, "OT", "REG")$$, 20, ARRAY['TIME_ENTRY_UPDATED'])
+  ('$WORKSPACE_ID', 'Amount', $$ROUND(Duration.h * CF("Rate") * OT.multiplier, 2)$$, 10, ARRAY['NEW_TIME_ENTRY','TIME_ENTRY_UPDATED'])
+ON CONFLICT (workspace_id, field_key) DO UPDATE SET expr = EXCLUDED.expr, priority = EXCLUDED.priority, on_events = EXCLUDED.on_events;
+
+INSERT INTO formulas (workspace_id, field_key, expr, priority, on_events)
+VALUES
+  ('$WORKSPACE_ID', 'OTFlag', $$OT.flag$$, 20, ARRAY['NEW_TIME_ENTRY','TIME_ENTRY_UPDATED'])
 ON CONFLICT (workspace_id, field_key) DO UPDATE SET expr = EXCLUDED.expr, priority = EXCLUDED.priority, on_events = EXCLUDED.on_events;
 
 INSERT INTO dictionaries (field_key, allowed_values)
 VALUES
-  ('OTFlag', '{"type":"dropdown","allowedValues":["REG","OT"],"mode":"warn"}')
+  ('Rate', '{"type":"numeric","numericRange":{"min":0},"mode":"warn"}')
+ON CONFLICT (field_key) DO UPDATE SET allowed_values = EXCLUDED.allowed_values;
+
+INSERT INTO dictionaries (field_key, allowed_values)
+VALUES
+  ('OTMultiplier', '{"type":"numeric","numericRange":{"min":1},"mode":"warn"}')
 ON CONFLICT (field_key) DO UPDATE SET allowed_values = EXCLUDED.allowed_values;
 
 INSERT INTO dictionaries (field_key, allowed_values)
 VALUES
   ('Amount', '{"type":"numeric","numericRange":{"min":0},"mode":"warn"}')
+ON CONFLICT (field_key) DO UPDATE SET allowed_values = EXCLUDED.allowed_values;
+
+INSERT INTO dictionaries (field_key, allowed_values)
+VALUES
+  ('OTFlag', '{"type":"dropdown","allowedValues":["REG","OT","DT"],"mode":"warn"}')
 ON CONFLICT (field_key) DO UPDATE SET allowed_values = EXCLUDED.allowed_values;
 SQL
 

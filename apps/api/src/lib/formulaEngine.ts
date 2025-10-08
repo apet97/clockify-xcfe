@@ -1,5 +1,7 @@
 import { Parser } from 'expr-eval';
 import { ClockifyTimeEntry, ClockifyWebhookEvent } from '../types/clockify.js';
+import { getDurationHours } from './timeUtils.js';
+import type { OtSummary } from './otRules.js';
 
 export type FieldValidationMode = 'warn' | 'block' | 'autofix';
 
@@ -24,6 +26,7 @@ export type FormulaEvaluationContext = {
   timeEntry: ClockifyTimeEntry;
   billRate?: number | null;
   costRate?: number | null;
+  otSummary?: OtSummary | null;
 };
 
 export type ValidationIssue = {
@@ -62,30 +65,6 @@ const toDate = (value: unknown): Date => {
   throw new Error('DATE expects a valid string or timestamp');
 };
 
-const getDurationHours = (timeEntry: ClockifyTimeEntry): number => {
-  const { timeInterval } = timeEntry;
-  if (!timeInterval) return 0;
-  const { duration, start, end } = timeInterval;
-  if (duration) {
-    const isoMatch = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (isoMatch) {
-      const hours = Number(isoMatch[1] ?? 0);
-      const minutes = Number(isoMatch[2] ?? 0);
-      const seconds = Number(isoMatch[3] ?? 0);
-      return hours + minutes / 60 + seconds / 3600;
-    }
-  }
-  if (start && end) {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
-      const diffMs = Math.max(0, endDate.getTime() - startDate.getTime());
-      return diffMs / (1000 * 60 * 60);
-    }
-  }
-  return 0;
-};
-
 const weekNumber = (date: Date) => {
   const temp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = temp.getUTCDay() || 7;
@@ -117,6 +96,41 @@ const parseDependencies = (expr: string): string[] => {
     if (key) results.add(key);
   }
   return Array.from(results);
+};
+
+const createOtHelper = (summary: OtSummary) => {
+  const fn = ((key?: string) => {
+    if (!key) return summary.multiplier;
+    const normalized = String(key).toLowerCase();
+    switch (normalized) {
+      case 'multiplier':
+        return summary.multiplier;
+      case 'base':
+      case 'basemultiplier':
+        return summary.baseMultiplier;
+      case 'flag':
+        return summary.flag;
+      case 'dailyhours':
+        return summary.dailyHours;
+      case 'entryhours':
+        return summary.entryHours;
+      case 'restgaphours':
+        return summary.restGapHours;
+      case 'shortrest':
+        return summary.shortRest;
+      case 'previousentryid':
+        return summary.previousEntryId ?? null;
+      case 'daykey':
+        return summary.dayKey;
+      case 'daystartutc':
+        return summary.dayStartUtc;
+      case 'dayendutc':
+        return summary.dayEndUtc;
+      default:
+        return (summary as unknown as Record<string, unknown>)[normalized] ?? null;
+    }
+  }) as ((key?: string) => unknown) & OtSummary;
+  return Object.assign(fn, summary);
 };
 
 const topologicalSort = (formulas: FormulaDefinition[]): FormulaDefinition[] => {
@@ -229,7 +243,7 @@ const validateRegexPattern = (pattern: string, flags: string) => {
 // Whitelist of allowed functions - security measure to prevent code injection
 const ALLOWED_FUNCTIONS = new Set([
   'ROUND', 'MIN', 'MAX', 'IF', 'AND', 'OR', 'NOT', 'IN', 
-  'REGEXMATCH', 'DATE', 'HOUR', 'WEEKDAY', 'WEEKNUM', 'CF'
+  'REGEXMATCH', 'DATE', 'HOUR', 'WEEKDAY', 'WEEKNUM', 'CF', 'OT', 'OTLABEL'
 ]);
 
 const installFunctions = () => {
@@ -453,6 +467,23 @@ export class FormulaEngine {
     const start = timeEntry.timeInterval?.start ? new Date(timeEntry.timeInterval.start) : undefined;
     const end = timeEntry.timeInterval?.end ? new Date(timeEntry.timeInterval.end) : undefined;
 
+    const ot: OtSummary = context.otSummary ?? {
+      multiplier: 1,
+      baseMultiplier: 1,
+      flag: 'REG',
+      dailyHours: durationHours,
+      entryHours: durationHours,
+      restGapHours: null,
+      shortRest: false,
+      previousEntryId: undefined,
+      timezoneOffsetMinutes: 0,
+      dayKey: '',
+      dayStartUtc: start ? start.toISOString() : '',
+      dayEndUtc: end ? end.toISOString() : ''
+    };
+
+    const otHelper = createOtHelper(ot);
+
     return {
       Duration: { h: durationHours },
       Start: { tz: start?.toISOString() ?? null },
@@ -465,7 +496,19 @@ export class FormulaEngine {
       Task: { name: timeEntry.task?.name ?? '' },
       BillRate: context.billRate ?? timeEntry.hourlyRate?.amount ?? null,
       CostRate: context.costRate ?? timeEntry.costRate?.amount ?? null,
-      Applied: applied
+      Applied: applied,
+      Shift: {
+        dailyHours: ot.dailyHours,
+        entryHours: ot.entryHours,
+        restGapHours: ot.restGapHours,
+        shortRest: ot.shortRest,
+        previousEntryId: ot.previousEntryId ?? null,
+        dayKey: ot.dayKey,
+        dayStartUtc: ot.dayStartUtc,
+        dayEndUtc: ot.dayEndUtc
+      },
+      OT: otHelper,
+      OTLABEL: () => ot.flag
     };
   }
 

@@ -11,6 +11,13 @@ const REGION_HOSTS: Record<string, string> = {
   apse2: 'https://apse2-api.clockify.me/api/v1'
 };
 
+const REPORT_REGION_HOSTS: Record<string, string> = {
+  euc1: 'https://euc1-reports.api.clockify.me/v1',
+  use2: 'https://use2-reports.api.clockify.me/v1',
+  euw2: 'https://euw2-reports.api.clockify.me/v1',
+  apse2: 'https://apse2-reports.api.clockify.me/v1'
+};
+
 type RequestOptions = {
   method?: string;
   path: string;
@@ -38,6 +45,11 @@ class ClockifyHttpError extends Error {
   }
 }
 
+const extractWorkspaceKey = (path: string): string => {
+  const match = path.match(/\/workspaces\/([^\/]+)/);
+  return match ? match[1] : 'global';
+};
+
 const buildBaseUrl = () => {
   if (CONFIG.CLOCKIFY_REGION) {
     const regionHost = REGION_HOSTS[CONFIG.CLOCKIFY_REGION];
@@ -45,6 +57,18 @@ const buildBaseUrl = () => {
     logger.warn({ region: CONFIG.CLOCKIFY_REGION }, 'Unknown region override supplied, falling back to base URL');
   }
   return CONFIG.CLOCKIFY_BASE_URL;
+};
+
+const buildReportsBaseUrl = () => {
+  if (CONFIG.CLOCKIFY_REGION) {
+    const host = REPORT_REGION_HOSTS[CONFIG.CLOCKIFY_REGION];
+    if (host) return host;
+    logger.warn({ region: CONFIG.CLOCKIFY_REGION }, 'Unknown reports region supplied, using default');
+  }
+  if (CONFIG.CLOCKIFY_BASE_URL && CONFIG.CLOCKIFY_BASE_URL.includes('api.clockify.me')) {
+    return CONFIG.CLOCKIFY_BASE_URL.replace('api.clockify.me/api/v1', 'reports.api.clockify.me/v1');
+  }
+  return 'https://reports.api.clockify.me/v1';
 };
 
 const serializeQuery = (query?: RequestOptions['query']) => {
@@ -77,6 +101,7 @@ const computeRetryDelayMs = (retryAfterHeader?: string | null) => {
 
 export class ClockifyClient {
   private readonly baseUrl = buildBaseUrl();
+  private readonly reportsBaseUrl = buildReportsBaseUrl();
 
   private getHeaders(correlationId?: string) {
     const headers: Record<string, string> = {
@@ -123,7 +148,8 @@ export class ClockifyClient {
 
   async request<T>(options: RequestOptions, baseUrlOverride?: string): Promise<T> {
     const correlationId = options.correlationId ?? randomUUID();
-    return rateLimiter.schedule(async () => this.rawRequest<T>({ ...options, correlationId }, baseUrlOverride));
+    const key = extractWorkspaceKey(options.path);
+    return rateLimiter.schedule(key, async () => this.rawRequest<T>({ ...options, correlationId }, baseUrlOverride));
   }
 
   async getTimeEntry(workspaceId: string, entryId: string, correlationId?: string): Promise<ClockifyTimeEntry> {
@@ -205,7 +231,6 @@ export class ClockifyClient {
     };
 
     // Use Reports API endpoint (different from regular API)
-    const reportsBaseUrl = CONFIG.CLOCKIFY_BASE_URL.replace('api.clockify.me/api/v1', 'reports.api.clockify.me/v1');
     
     return this.request<{
       timeEntries: Array<{ id: string; [key: string]: unknown }>;
@@ -215,7 +240,7 @@ export class ClockifyClient {
       path: `/workspaces/${workspaceId}/reports/detailed`,
       body,
       correlationId
-    }, reportsBaseUrl);
+    }, this.reportsBaseUrl);
   }
 }
 

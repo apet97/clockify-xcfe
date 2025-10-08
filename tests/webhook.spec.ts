@@ -17,7 +17,8 @@ vi.mock('@api/lib/clockifyClient.js', () => ({
     getTimeEntry: vi.fn(),
     patchTimeEntryCustomFields: vi.fn(),
     listWebhooks: vi.fn(),
-    createWebhook: vi.fn()
+    createWebhook: vi.fn(),
+    getDetailedReport: vi.fn()
   }
 }));
 
@@ -74,6 +75,12 @@ beforeEach(() => {
   (clockifyClient.getTimeEntry as unknown as vi.Mock)
     .mockResolvedValueOnce(baseTimeEntry)
     .mockResolvedValueOnce({ ...baseTimeEntry });
+  (clockifyClient.getDetailedReport as unknown as vi.Mock).mockResolvedValue({
+    timeEntries: [
+      { id: baseTimeEntry.id, userId: baseTimeEntry.userId, timeInterval: baseTimeEntry.timeInterval }
+    ],
+    totals: []
+  });
   (clockifyClient.patchTimeEntryCustomFields as unknown as vi.Mock).mockResolvedValue(undefined);
   (recordRun as unknown as vi.Mock).mockResolvedValue('run-1');
 });
@@ -113,6 +120,11 @@ describe('Clockify webhook handler', () => {
       { correlationId: 'corr-1' }
     );
     expect(recordRun).toHaveBeenCalled();
+    expect(recordRun).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: webhookPayload.workspaceId,
+      event: 'NEW_TIME_ENTRY',
+      correlationId: 'corr-1'
+    }));
     expect(next).not.toHaveBeenCalled();
   });
 

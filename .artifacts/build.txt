@@ -1,0 +1,18 @@
+
+> clockify-xcfe@0.1.0 build /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe
+> pnpm -r build
+
+Scope: 2 of 3 workspace projects
+apps/api build$ tsc -p tsconfig.build.json
+apps/admin-ui build$ vite build
+apps/admin-ui build: vite v5.4.20 building for production...
+apps/admin-ui build: transforming...
+apps/admin-ui build: ✓ 92 modules transformed.
+apps/admin-ui build: rendering chunks...
+apps/admin-ui build: computing gzip size...
+apps/admin-ui build: dist/index.html                   0.60 kB │ gzip:  0.38 kB
+apps/admin-ui build: dist/assets/index-BlNYzfZ3.css    2.82 kB │ gzip:  0.99 kB
+apps/admin-ui build: dist/assets/index-oyrKt-ku.js   232.32 kB │ gzip: 71.71 kB
+apps/admin-ui build: ✓ built in 736ms
+apps/admin-ui build: Done
+apps/api build: Done

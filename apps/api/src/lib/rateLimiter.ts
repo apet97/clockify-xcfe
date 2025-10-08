@@ -8,6 +8,7 @@ const jitter = (base: number) => {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 type Task<T = unknown> = {
+  key: string;
   fn: () => Promise<T>;
   resolve: (value: T | PromiseLike<T>) => void;
   reject: (reason?: unknown) => void;
@@ -20,6 +21,7 @@ export class RateLimiter {
   private readonly maxAttempts: number;
   private readonly queue: Task<unknown>[] = [];
   private lastRun = 0;
+  private readonly lastRunByKey = new Map<string, number>();
   private running = false;
 
   constructor(options?: { rps?: number; maxBackoffMs?: number; maxAttempts?: number }) {
@@ -28,9 +30,9 @@ export class RateLimiter {
     this.maxAttempts = options?.maxAttempts ?? 5;
   }
 
-  schedule<T>(fn: () => Promise<T>, attempt = 0): Promise<T> {
+  schedule<T>(key: string, fn: () => Promise<T>, attempt = 0): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.queue.push({ fn, resolve: resolve as any, reject, attempt });
+      this.queue.push({ key, fn, resolve: resolve as any, reject, attempt });
       this.run();
     });
   }
@@ -45,12 +47,17 @@ export class RateLimiter {
 
       const interval = 1000 / this.rps;
       const now = Date.now();
-      const elapsed = now - this.lastRun;
-      if (elapsed < interval) {
-        await sleep(jitter(interval - elapsed));
+      const elapsedGlobal = now - this.lastRun;
+      const lastKeyRun = this.lastRunByKey.get(task.key) ?? 0;
+      const elapsedKey = now - lastKeyRun;
+      const waitMs = Math.max(0, interval - elapsedGlobal, interval - elapsedKey);
+      if (waitMs > 0) {
+        await sleep(jitter(waitMs));
       }
 
-      this.lastRun = Date.now();
+      const executedAt = Date.now();
+      this.lastRun = executedAt;
+      this.lastRunByKey.set(task.key, executedAt);
       try {
         const result = await task.fn();
         task.resolve(result);

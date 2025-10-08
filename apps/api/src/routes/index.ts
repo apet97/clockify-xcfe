@@ -7,6 +7,7 @@ import backfillRoutes from './backfill.js';
 import authRoutes from './auth.js';
 import runsRoutes from './runs.js';
 import settingsRoutes from './settings.js';
+import proxyRoutes from './proxy.js';
 
 const router: Router = Router();
 
@@ -18,5 +19,6 @@ router.use('/backfill', backfillRoutes);
 router.use('/auth', authRoutes);
 router.use('/runs', runsRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/proxy', proxyRoutes);
 
 export default router;

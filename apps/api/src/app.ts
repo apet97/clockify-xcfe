@@ -45,8 +45,20 @@ export const createApp = (): express.Express => {
     })
   );
 
-  app.get('/', (_req, res) => {
+  app.get('/', (req, res) => {
+    // If this is a Clockify addon request with configuration, redirect to UI
+    if (req.query.auth_token) {
+      return res.redirect(`/ui/sidebar?${new URLSearchParams(req.query as any).toString()}`);
+    }
     res.json({ name: 'xCustom Field Expander API', version: '0.1.0' });
+  });
+
+  // Handle settings configuration URLs like /{encoded-json}
+  app.get(/^\/\%7B.*/, (req, res) => {
+    // This is a Clockify settings page request with encoded JSON config
+    const configPath = req.path.substring(1); // Remove leading /
+    const query = req.query.auth_token ? `?auth_token=${req.query.auth_token}` : '';
+    res.redirect(`/ui/settings/${encodeURIComponent(configPath)}${query}`);
   });
 
   app.use('/manifest', manifestRoutes);

@@ -48,8 +48,10 @@ const AuditLogPage: React.FC = () => {
             <tr>
               <th>Timestamp</th>
               <th>Status</th>
+              <th>Event</th>
               <th>Entry</th>
               <th>User</th>
+              <th>Correlation</th>
               <th>Duration (ms)</th>
               <th>Diff</th>
             </tr>
@@ -59,8 +61,10 @@ const AuditLogPage: React.FC = () => {
               <tr key={run.id}>
                 <td>{new Date(run.ts).toLocaleString()}</td>
                 <td>{run.status}</td>
-                <td>{run.entryId}</td>
+                <td>{run.event ?? '—'}</td>
+                <td>{run.entryId ?? '—'}</td>
                 <td>{run.userId ?? '—'}</td>
+                <td>{run.correlationId ?? '—'}</td>
                 <td>{run.ms ?? '—'}</td>
                 <td>
                   <pre style={{ margin: 0, maxWidth: 320, whiteSpace: 'pre-wrap' }}>

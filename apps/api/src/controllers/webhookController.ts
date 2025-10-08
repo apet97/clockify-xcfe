@@ -1,9 +1,11 @@
 import type { RequestHandler } from 'express';
+import { createHash, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { clockifyClient } from '../lib/clockifyClient.js';
 import { verifyClockifySignature } from '../lib/webhookSecurity.js';
 import { fetchFormulaEngineInputs } from '../services/formulaService.js';
 import { FormulaEngine } from '../lib/formulaEngine.js';
+import { computeOtSummary } from '../lib/otRules.js';
 import { CONFIG } from '../config/index.js';
 import { clockifyTimeEntrySchema, ClockifyWebhookEvent, billableRateUpdatedSchema } from '../types/clockify.js';
 import { recordRun } from '../services/runService.js';
@@ -11,6 +13,25 @@ import { logger } from '../lib/logger.js';
 
 // Rate-limited logging for workspace mismatches (once per minute)
 const workspaceMismatchLog = new Map<string, number>();
+
+const PATCH_FINGERPRINT_TTL_MS = 5 * 60 * 1000;
+const patchFingerprintCache = new Map<string, { fingerprint: string; timestamp: number }>();
+const buildFingerprintKey = (workspaceId: string, entryId: string) => `${workspaceId}:${entryId}`;
+
+const shouldSkipFingerprint = (key: string, fingerprint: string) => {
+  const record = patchFingerprintCache.get(key);
+  if (!record) return false;
+  const now = Date.now();
+  if (now - record.timestamp > PATCH_FINGERPRINT_TTL_MS) {
+    patchFingerprintCache.delete(key);
+    return false;
+  }
+  return record.fingerprint === fingerprint;
+};
+
+const rememberFingerprint = (key: string, fingerprint: string) => {
+  patchFingerprintCache.set(key, { fingerprint, timestamp: Date.now() });
+};
 
 const hashCustomFieldValues = (values: { customFieldId: string; value: unknown }[] = []) => {
   const normalized = values
@@ -50,11 +71,13 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       return res.status(403).json({ error: 'Invalid addon token' });
     }
 
-    const rawBody = req.rawBody ?? JSON.stringify(req.body ?? {});
+    const rawBody = (req as any).rawBody ?? JSON.stringify(req.body ?? {});
     const signature = req.header('x-clockify-signature');
     if (!verifyClockifySignature(rawBody, signature)) {
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
+
+    const correlationId: string = (req as any).correlationId ?? randomUUID();
 
     const event = resolveEventType(req.body, req.header('x-clockify-event'));
     if (!event) {
@@ -63,9 +86,12 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
 
     if (event === 'TIME_ENTRY_DELETED') {
       await recordRun({
+        workspaceId: CONFIG.WORKSPACE_ID,
         entryId: (req.body as { id?: string })?.id ?? 'unknown',
         status: 'skipped',
         ms: 0,
+        event,
+        correlationId,
         diff: { reason: 'Time entry deleted event' }
       });
       return res.status(200).json({ ok: true });
@@ -79,10 +105,13 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       }
       // For now, record the rate update and return. Future enhancement: enqueue backfill.
       await recordRun({
+        workspaceId: parsed.data.workspaceId ?? CONFIG.WORKSPACE_ID,
         entryId: `rate-${parsed.data.modifiedEntity.userId}`,
         userId: parsed.data.modifiedEntity.userId,
         status: 'skipped',
         ms: 0,
+        event,
+        correlationId,
         diff: { note: 'Rate change event captured', payload: parsed.data }
       });
       return res.status(200).json({ ok: true, accepted: true });
@@ -105,10 +134,14 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       return res.status(200).json({ ok: true, message: 'Workspace mismatch ignored' });
     }
 
-    const correlationId = req.correlationId;
-
     const start = performance.now();
     const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId);
+    const otSummary = await computeOtSummary({
+      workspaceId,
+      timeEntry: liveEntry,
+      client: clockifyClient,
+      correlationId
+    });
     const beforeHash = hashCustomFieldValues((liveEntry.customFieldValues ?? []).map(cf => ({ 
       customFieldId: cf.customFieldId, 
       value: cf.value ?? null 
@@ -122,20 +155,32 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
 
     const { updates, diagnostics, changes, warnings } = engine.evaluate(
       formulas,
-      { timeEntry: liveEntry },
+      { timeEntry: liveEntry, otSummary },
       event
     );
 
     if (!updates.length) {
       await recordRun({
+        workspaceId,
         entryId: liveEntry.id,
         userId: liveEntry.userId,
         status: 'skipped',
         ms: Math.round(performance.now() - start),
-        diff: { reason: 'No formula changes', warnings }
+        event,
+        correlationId,
+        diff: { reason: 'No formula changes', warnings, ot: otSummary }
       });
       return res.status(200).json({ ok: true, changes: 0, diagnostics, warnings });
     }
+
+    const diff = updates.map((update) => ({
+      fieldKey: update.fieldKey,
+      customFieldId: update.customFieldId,
+      before: beforeValues.get(update.customFieldId) ?? null,
+      after: update.value
+    }));
+    const fingerprint = createHash('sha256').update(JSON.stringify(diff)).digest('hex');
+    const fingerprintKey = buildFingerprintKey(workspaceId, liveEntry.id);
 
     const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId);
     const latestHash = hashCustomFieldValues((latest.customFieldValues ?? []).map(cf => ({ 
@@ -144,13 +189,30 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
     })));
     if (latestHash !== beforeHash) {
       await recordRun({
+        workspaceId,
         entryId: liveEntry.id,
         userId: liveEntry.userId,
         status: 'skipped',
         ms: Math.round(performance.now() - start),
-        diff: { reason: 'Custom fields changed during evaluation' }
+        event,
+        correlationId,
+        diff: { reason: 'Custom fields changed during evaluation', ot: otSummary, beforeHash, latestHash }
       });
       return res.status(202).json({ ok: true, changes: 0, diagnostics, warnings, retried: true });
+    }
+
+    if (shouldSkipFingerprint(fingerprintKey, fingerprint)) {
+      await recordRun({
+        workspaceId,
+        entryId: liveEntry.id,
+        userId: liveEntry.userId,
+        status: 'skipped',
+        ms: Math.round(performance.now() - start),
+        event,
+        correlationId,
+        diff: { reason: 'Duplicate fingerprint', warnings, ot: otSummary, fingerprint }
+      });
+      return res.status(200).json({ ok: true, changes: 0, diagnostics, warnings, duplicate: true });
     }
 
     await clockifyClient.patchTimeEntryCustomFields(
@@ -161,21 +223,17 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       },
       { correlationId }
     );
-
-    const diff = updates.map((update) => ({
-      fieldKey: update.fieldKey,
-      customFieldId: update.customFieldId,
-      before: beforeValues.get(update.customFieldId) ?? null,
-      after: update.value
-    }));
-
     const duration = Math.round(performance.now() - start);
+    rememberFingerprint(fingerprintKey, fingerprint);
     await recordRun({
+      workspaceId,
       entryId: liveEntry.id,
       userId: liveEntry.userId,
       status: 'success',
       ms: duration,
-      diff: { changes: diff, warnings }
+      event,
+      correlationId,
+      diff: { changes: diff, warnings, ot: otSummary, beforeHash, latestHash, fingerprint }
     });
 
     logger.info({ correlationId, entryId: liveEntry.id, updates }, 'Applied custom field updates');

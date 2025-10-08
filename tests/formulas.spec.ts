@@ -134,4 +134,55 @@ describe('FormulaEngine', () => {
     expect(result.updates).toHaveLength(0);
     expect(result.diagnostics).toHaveLength(0);
   });
+
+  it('provides OT() helper shortcuts', () => {
+    const engine = new FormulaEngine(dictionaries);
+    const otSummary = {
+      multiplier: 1.5,
+      baseMultiplier: 1.5,
+      flag: 'OT' as const,
+      dailyHours: 12,
+      entryHours: 4,
+      restGapHours: 2,
+      shortRest: true,
+      previousEntryId: 'entry-0',
+      timezoneOffsetMinutes: 0,
+      dayKey: '2024-03-01@+0000',
+      dayStartUtc: '2024-03-01T00:00:00.000Z',
+      dayEndUtc: '2024-03-02T00:00:00.000Z'
+    };
+
+    const otFormulas: FormulaDefinition[] = [
+      {
+        id: 'ot-helper',
+        workspaceId: 'workspace-1',
+        fieldKey: 'Helper',
+        expr: 'OT() + OT("base") - 1',
+        priority: 30,
+        onEvents: ['TIME_ENTRY_UPDATED']
+      },
+      {
+        id: 'ot-label',
+        workspaceId: 'workspace-1',
+        fieldKey: 'Flag',
+        expr: 'OTLABEL()',
+        priority: 31,
+        onEvents: ['TIME_ENTRY_UPDATED']
+      }
+    ];
+
+    const entryWithOtFields: ClockifyTimeEntry = {
+      ...baseEntry,
+      customFieldValues: [
+        ...baseEntry.customFieldValues,
+        { customFieldId: 'helper-field', name: 'Helper', value: null, timeEntryId: 'entry-1' },
+        { customFieldId: 'flag-field', name: 'Flag', value: null, timeEntryId: 'entry-1' }
+      ]
+    };
+
+    const result = engine.evaluate(otFormulas, { timeEntry: entryWithOtFields, otSummary }, 'TIME_ENTRY_UPDATED');
+    // OT() returns 1.5, OT("base") returns 1.5, so 1.5 + 1.5 - 1 = 2
+    expect(result.updates[0].value).toBeCloseTo(2, 5);
+    expect(result.updates[1].value).toBe('OT');
+  });
 });

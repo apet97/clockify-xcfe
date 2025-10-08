@@ -1,0 +1,9 @@
+version: "2"
+authtoken: 
+tunnels:
+  api:
+    proto: http
+    addr: 8080
+  admin:
+    proto: http
+    addr: 5173

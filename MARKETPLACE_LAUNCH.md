@@ -26,8 +26,8 @@ This guide walks you through installing the xCFE add-on in your Clockify develop
    BASE_URL=http://localhost:8080            # Will be overridden by ngrok
    
    # Database (SQLite for development)
-   DATABASE_URL=sqlite:./dev.db
-   SKIP_DATABASE_CHECKS=true                 # Skip database checks for quick testing
+   DATABASE_URL=postgres://postgres:postgres@localhost:5432/xcfe
+   SKIP_DATABASE_CHECKS=true                 # Skip database checks for quick testing (override in production)
    
    # Security
    ENCRYPTION_KEY=your_32_character_encryption_key_here_minimum_length
@@ -113,15 +113,17 @@ curl -s https://your-ngrok-url.ngrok-free.app/manifest | jq '.key'
    curl https://your-ngrok-url.ngrok.io/v1/sites/health
    ```
 
-2. **Open Clockify web app**
+2. **Seed demo OT formulas (optional but recommended):**
+   ```bash
+   scripts/seed-demo.sh
+   ```
+   This installs `Rate`, `OTMultiplier`, `Amount`, and `OTFlag` dictionaries/formulas for quick validation.
 
-3. **Go to your developer workspace**
+3. **Open the Clockify web app** and switch to your developer workspace.
 
-4. **Look for "Add-ons" in the sidebar**
+4. **Open the “Add-ons” sidebar** and launch **xCFE**.
 
-5. **Click "xCFE" to open the sidebar component**
-
-6. **You should see:** "✓ Installed OK" with workspace and user info
+5. **Confirm the iframe reports** “✓ Installed OK” with workspace/user info and latest time-entry snapshot.
 
 ## Step 6: Test Add-on Functionality
 
