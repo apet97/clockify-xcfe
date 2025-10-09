@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { verifyClockifyJwt } from '../lib/jwt.js';
 import { upsertInstallation, deleteInstallation } from '../services/installationService.js';
+import { updateWorkspaceSettings } from '../services/settingsService.js';
 import { CONFIG } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 
@@ -133,11 +134,38 @@ export const handleSettingsUpdated: RequestHandler = async (req, res) => {
   }
 
   try {
+    // Store raw settings blob in installations table
     await upsertInstallation({
       addonId,
       workspaceId,
       settingsJson: settings || {}
     });
+
+    // Mirror relevant keys to the canonical settings table
+    if (settings && typeof settings === 'object') {
+      const settingsPatch: {
+        strict_mode?: boolean;
+        reference_months?: number;
+        region?: string;
+      } = {};
+
+      if (typeof settings.strict_mode === 'boolean') {
+        settingsPatch.strict_mode = settings.strict_mode;
+      }
+
+      if (typeof settings.reference_months === 'number') {
+        settingsPatch.reference_months = settings.reference_months;
+      }
+
+      if (typeof settings.region === 'string') {
+        settingsPatch.region = settings.region;
+      }
+
+      // Only update settings table if we have relevant keys
+      if (Object.keys(settingsPatch).length > 0) {
+        await updateWorkspaceSettings(workspaceId, settingsPatch);
+      }
+    }
   } catch (error) {
     logger.error({ err: error }, 'Settings update persistence failed');
     return res.status(503).json({ error: 'Failed to persist settings' });

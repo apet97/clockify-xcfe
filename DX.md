@@ -34,10 +34,16 @@
 - Webhook handler caches SHA-256 fingerprints for 5 minutes to suppress duplicate patches.
 - Backfill logs include per-day correlation IDs and update counts.
 
+## Settings Persistence
+- `/v1/settings` now reads from and writes to the Postgres `settings` table.
+- The `handleSettingsUpdated` lifecycle hook stores the raw blob in `installations.settings_json` while mirroring relevant keys (`strict_mode`, `reference_months`, `region`) to the canonical `settings` table.
+- Running `infra/db.sql` is **required** before deploying; ensure the `settings` table exists.
+- When `SKIP_DATABASE_CHECKS=true`, the service returns sensible defaults (`strict_mode=false`, `reference_months=3`, `region=CONFIG.CLOCKIFY_REGION`) without querying Postgres.
+
 ## Deployment Checklist
 1. Update `infra/manifest.json` with production URLs.
 2. Run `scripts/verify-env.sh` in CI to ensure secrets exist.
-3. Apply `infra/db.sql` to production Postgres.
+3. Apply `infra/db.sql` to production Postgres (including the `settings` table).
 4. `pnpm run build` and store artifacts (container or serverless bundle).
 5. Capture `pnpm run test` output and Admin UI screenshots for the release PR.
 6. Confirm audit logs show `workspace_id`, `event`, `correlation_id`, and fingerprint data.
