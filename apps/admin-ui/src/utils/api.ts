@@ -9,7 +9,19 @@ const normalize = (path: string) => {
 type RequestInitExt = Omit<RequestInit, 'body'> & { body?: unknown };
 
 export const apiRequest = async <T>(token: string | null, path: string, init: RequestInitExt = {}): Promise<T> => {
-  const url = normalize(path);
+  const normalized = normalize(path);
+
+  let url: URL;
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    url = new URL(normalized);
+  } else {
+    url = new URL(normalized, window.location.origin);
+  }
+
+  const iframeToken = new URLSearchParams(window.location.search).get('auth_token');
+  if (iframeToken && !url.searchParams.has('auth_token')) {
+    url.searchParams.set('auth_token', iframeToken);
+  }
   const headers = new Headers(init.headers as HeadersInit | undefined);
   headers.set('Accept', 'application/json');
 
@@ -28,7 +40,7 @@ export const apiRequest = async <T>(token: string | null, path: string, init: Re
     body: isJsonBody ? JSON.stringify(init.body) : (init.body as BodyInit | undefined)
   };
 
-  const response = await fetch(url, requestInit);
+  const response = await fetch(url.toString(), requestInit);
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Request failed with status ${response.status}`);

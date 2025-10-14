@@ -1,0 +1,12 @@
+HTTP/2 400 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 16:48:17 GMT
+etag: W/"10a-UagHQzQty5Ag7EVTmVlYzX358ew"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: dcf6ef0d-f69e-4fa6-9c90-6408330b51eb
+x-powered-by: Express
+content-length: 266
+
+{"error":"Invalid request parameters","details":[{"code":"invalid_type","expected":"string","received":"undefined","path":["startDate"],"message":"Required"},{"code":"invalid_type","expected":"string","received":"undefined","path":["endDate"],"message":"Required"}]}

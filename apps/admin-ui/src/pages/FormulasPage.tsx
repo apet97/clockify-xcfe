@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../providers/AuthProvider.js';
 import { apiRequest } from '../utils/api.js';
+import { buildLink } from '../utils/buildLink.js';
 import Modal from '../components/Modal.js';
 import type { Formula, BackfillResult } from '../types/api.js';
 
@@ -22,6 +23,17 @@ const newDraft = (): Draft => ({
   onEvents: ['NEW_TIME_ENTRY', 'TIME_ENTRY_UPDATED']
 });
 
+interface EvaluateResult {
+  evaluated: number;
+  updated: number;
+  workspaceId: string;
+  userId: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
 const FormulasPage: React.FC = () => {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -29,6 +41,16 @@ const FormulasPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDryRun, setShowDryRun] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<BackfillResult | null>(null);
+  const [evaluateStartDate, setEvaluateStartDate] = useState<string>(() => {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return yesterday.toISOString().slice(0, 16);
+  });
+  const [evaluateEndDate, setEvaluateEndDate] = useState<string>(() => {
+    return new Date().toISOString().slice(0, 16);
+  });
+  const [evaluateResult, setEvaluateResult] = useState<EvaluateResult | null>(null);
+  const [showEvaluateResult, setShowEvaluateResult] = useState(false);
 
   const formulasQuery = useQuery({
     queryKey: ['formulas'],
@@ -92,6 +114,32 @@ const FormulasPage: React.FC = () => {
     }
   });
 
+  const evaluateFormulas = useMutation({
+    mutationFn: async () => {
+      const startDate = new Date(evaluateStartDate).toISOString();
+      const endDate = new Date(evaluateEndDate).toISOString();
+      
+      // Use buildLink to preserve auth_token and other query parameters
+      const url = buildLink('/formulas/recompute');
+      
+      return apiRequest<EvaluateResult>(token, url, {
+        method: 'POST',
+        body: {
+          startDate,
+          endDate
+        }
+      });
+    },
+    onSuccess: (data) => {
+      setEvaluateResult(data);
+      setShowEvaluateResult(true);
+      setError(null);
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Evaluation failed');
+    }
+  });
+
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
     if (!draft) return;
@@ -108,9 +156,9 @@ const FormulasPage: React.FC = () => {
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <h2>Formulas</h2>
           <div className="row">
-            <button 
-              className="ghost" 
-              type="button" 
+            <button
+              className="ghost"
+              type="button"
               onClick={() => runDryRun.mutate()}
               disabled={runDryRun.isPending}
             >
@@ -124,6 +172,39 @@ const FormulasPage: React.FC = () => {
         <p style={{ color: '#52606d', fontSize: '0.85rem' }}>
           Formulas evaluate against Clockify webhook payloads. Use <code>CF("Field")</code> for cross-field references and helpers like <code>ROUND</code>, <code>IF</code>, and <code>WEEKDAY</code>.
         </p>
+        
+        {/* Evaluate Now Section */}
+        <div className="card" style={{ backgroundColor: '#f8f9fa', border: '1px solid #e9ecef' }}>
+          <h3 style={{ marginTop: 0 }}>Evaluate Now</h3>
+          <div className="row" style={{ gap: '1rem', alignItems: 'flex-end' }}>
+            <label style={{ flex: 1 }}>
+              Start Date
+              <input
+                type="datetime-local"
+                value={evaluateStartDate}
+                onChange={(e) => setEvaluateStartDate(e.target.value)}
+              />
+            </label>
+            <label style={{ flex: 1 }}>
+              End Date
+              <input
+                type="datetime-local"
+                value={evaluateEndDate}
+                onChange={(e) => setEvaluateEndDate(e.target.value)}
+              />
+            </label>
+            <button
+              className="primary"
+              type="button"
+              onClick={() => evaluateFormulas.mutate()}
+              disabled={evaluateFormulas.isPending}
+              style={{ minWidth: '120px' }}
+            >
+              {evaluateFormulas.isPending ? 'Evaluating...' : 'Evaluate Now'}
+            </button>
+          </div>
+          {error && <div className="error" style={{ marginTop: '1rem' }}>{error}</div>}
+        </div>
         {formulasQuery.isLoading ? <p>Loading formulas…</p> : null}
         {formulasQuery.error ? <div className="error">Failed to load formulas</div> : null}
         {sorted.length ? (
@@ -319,6 +400,51 @@ const FormulasPage: React.FC = () => {
 
             <div className="row" style={{ justifyContent: 'flex-end' }}>
               <button className="ghost" onClick={() => setShowDryRun(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {/* Evaluate Results Modal */}
+      {showEvaluateResult && evaluateResult ? (
+        <Modal
+          title="Formula Evaluation Results"
+          onClose={() => setShowEvaluateResult(false)}
+          size="normal"
+        >
+          <div className="stack">
+            <div className="row">
+              <div className="card" style={{ flex: 1 }}>
+                <strong>Entries Evaluated</strong>
+                <div style={{ fontSize: '1.5rem' }}>{evaluateResult.evaluated}</div>
+              </div>
+              <div className="card" style={{ flex: 1 }}>
+                <strong>Entries Updated</strong>
+                <div style={{ fontSize: '1.5rem' }}>{evaluateResult.updated}</div>
+              </div>
+            </div>
+            
+            <div className="card">
+              <strong>Date Range</strong>
+              <div>
+                {new Date(evaluateResult.dateRange.startDate).toLocaleString()} - {new Date(evaluateResult.dateRange.endDate).toLocaleString()}
+              </div>
+            </div>
+            
+            <div className="card">
+              <strong>Workspace</strong>
+              <div>{evaluateResult.workspaceId}</div>
+            </div>
+            
+            <div className="card">
+              <strong>User</strong>
+              <div>{evaluateResult.userId}</div>
+            </div>
+
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button className="ghost" onClick={() => setShowEvaluateResult(false)}>
                 Close
               </button>
             </div>

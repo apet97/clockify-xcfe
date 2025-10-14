@@ -1,0 +1,42 @@
+# Final Host Alignment Report
+
+## Chosen Public Host
+https://9e5a48f11537.ngrok-free.app
+
+## Verification Results
+
+### 1. Manifest baseUrl
+```
+curl -s https://9e5a48f11537.ngrok-free.app/manifest | jq -r .baseUrl
+```
+**Result:** https://9e5a48f11537.ngrok-free.app
+**Status:** ✅ MATCH
+
+### 2. Version baseUrl
+```
+curl -s https://9e5a48f11537.ngrok-free.app/version | jq -r .baseUrl
+```
+**Result:** https://9e5a48f11537.ngrok-free.app
+**Status:** ✅ MATCH
+
+### 3. UI Serving
+```
+curl -sL https://9e5a48f11537.ngrok-free.app/ui/formulas
+```
+**Result:** React SPA HTML with title "xCFE Admin"
+**Bundle:** index-DieCm38Y.js
+**Status:** ✅ SERVING
+
+### 4. Single-Host Policy
+- Using ONLY ngrok tunnel
+- No Cloudflare tunnel active
+- All endpoints accessible via single host
+**Status:** ✅ COMPLIANT
+
+## Summary
+**Final Verdict: MATCH**
+
+All public endpoints consistently use the ngrok host.
+No dual-hosting detected.
+
+Date: 2025-10-10T02:21:09Z

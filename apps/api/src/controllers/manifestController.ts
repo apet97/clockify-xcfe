@@ -3,66 +3,82 @@ import { CONFIG } from '../config/index.js';
 
 export const getManifest: RequestHandler = (_req, res) => {
   const manifest = {
-    key: CONFIG.ADDON_KEY,
-    name: CONFIG.ADDON_NAME,
+    schemaVersion: "1.3",
+    key: "xcfe-custom-field-expander",
+    name: "xCustom Field Expander",
     baseUrl: CONFIG.BASE_URL,
-    description: "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
-    minimalSubscriptionPlan: "PRO",
+    description: "Automated formula evaluation and validation for Clockify custom fields",
+    iconPath: "/assets/icon.png",
+    requiredPlan: "FREE",
     scopes: [
       "TIME_ENTRY_READ",
-      "TIME_ENTRY_WRITE", 
+      "TIME_ENTRY_WRITE",
       "USER_READ",
       "PROJECT_READ",
       "TASK_READ",
-      "CUSTOM_FIELDS_READ",
-      "WORKSPACE_READ"
+      "CUSTOM_FIELD_READ"
     ],
     components: [
       {
-        type: "sidebar",
-        accessLevel: "EVERYONE",
+        location: "SIDEBAR",
+        access: "EVERYONE",
         path: "/ui/sidebar",
-        label: "xCFE"
+        label: "Formula Manager"
+      },
+      {
+        location: "PROJECT_OVERVIEW",
+        access: "EVERYONE",
+        path: "/ui/project-tab",
+        label: "Formulas"
       }
     ],
-    settings: JSON.stringify({
-      tabs: [
+    settings: {
+      type: "STRUCTURED",
+      path: "/api/lifecycle/settings-updated",
+      properties: [
         {
-          id: "general",
-          name: "General Settings",
-          description: "Configure general xCFE behavior",
-          fields: [
-            {
-              key: "enableAutoFormulas",
-              type: "TXT",
-              label: "Enable Auto Formulas",
-              description: "Automatically evaluate formulas on time entry changes",
-              required: false,
-              defaultValue: "true"
-            }
-          ]
+          id: "enableAutoEvaluation",
+          name: "Enable Auto Evaluation",
+          type: "CHECKBOX",
+          value: true,
+          accessLevel: "ADMINS"
+        },
+        {
+          id: "evaluationDelay",
+          name: "Evaluation Delay (seconds)",
+          type: "NUMBER",
+          value: 5,
+          accessLevel: "ADMINS"
+        },
+        {
+          id: "maxFormulasPerWorkspace",
+          name: "Max Formulas Per Workspace",
+          type: "NUMBER",
+          value: 50,
+          accessLevel: "ADMINS"
         }
       ]
-    }),
-    lifecycle: [
+    },
+    lifecycle: {
+      installed: "/api/lifecycle/installed",
+      updated: "/api/lifecycle/updated",
+      uninstalled: "/api/lifecycle/uninstalled",
+      statusChanged: "/api/lifecycle/status-changed"
+    },
+    webhooks: [
       {
-        type: "INSTALLED",
-        path: "/lifecycle/installed"
+        webhookType: "TIME_ENTRY_CREATED",
+        path: "/api/webhooks/time-entry-created"
       },
       {
-        type: "STATUS_CHANGED",
-        path: "/lifecycle/status"
+        webhookType: "TIME_ENTRY_UPDATED",
+        path: "/api/webhooks/time-entry-updated"
       },
       {
-        type: "SETTINGS_UPDATED", 
-        path: "/lifecycle/settings"
-      },
-      {
-        type: "DELETED",
-        path: "/lifecycle/deleted"
+        webhookType: "TIME_ENTRY_DELETED",
+        path: "/api/webhooks/time-entry-deleted"
       }
-    ],
-    webhooks: []
+    ]
   };
 
   res.json(manifest);

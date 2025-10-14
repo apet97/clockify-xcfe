@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:15
     restart: unless-stopped
     ports:
       - '5432:5432'

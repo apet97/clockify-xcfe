@@ -8,6 +8,8 @@ import DictionariesPage from './pages/DictionariesPage.js';
 import BackfillPage from './pages/BackfillPage.js';
 import AuditLogPage from './pages/AuditLogPage.js';
 import SettingsPage from './pages/SettingsPage.js';
+import { buildLink } from './utils/buildLink.js';
+import { BUILD } from './version.js';
 
 const navItems: Array<{to: string; label: string; end?: boolean}> = [
   { to: '/', label: 'Dashboard', end: true },
@@ -31,6 +33,9 @@ const App: React.FC = () => {
         <div>
           <h1 className="app-title">xCFE Admin</h1>
           <p className="app-subtitle">Formula governance for Clockify custom fields</p>
+          <p className="app-version" style={{ fontSize: '0.75rem', color: '#666', marginTop: '4px' }}>
+            v {BUILD.commit.slice(0, 7)} @ {new Date(BUILD.builtAt).toLocaleString()}
+          </p>
         </div>
         <button className="ghost" type="button" onClick={logout}>
           Sign out
@@ -40,7 +45,7 @@ const App: React.FC = () => {
         {navItems.map(item => (
           <NavLink
             key={item.to}
-            to={item.to}
+            to={buildLink(item.to)}
             end={item.end}
             className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
           >

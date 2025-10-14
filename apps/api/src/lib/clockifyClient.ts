@@ -24,6 +24,7 @@ type RequestOptions = {
   body?: unknown;
   correlationId?: string;
   query?: Record<string, string | number | undefined>;
+  authToken?: string;
 };
 
 class RateLimitError extends Error {
@@ -103,28 +104,43 @@ export class ClockifyClient {
   private readonly baseUrl = buildBaseUrl();
   private readonly reportsBaseUrl = buildReportsBaseUrl();
 
-  private getHeaders(correlationId?: string) {
+  private getHeaders(correlationId?: string, authToken?: string) {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json'
     };
-    if (CONFIG.ADDON_TOKEN) headers['X-Addon-Token'] = CONFIG.ADDON_TOKEN;
-    if (CONFIG.API_KEY) headers['X-Api-Key'] = CONFIG.API_KEY;
+    // Priority: per-request token > env ADDON_TOKEN > env API_KEY
+    if (authToken) {
+      headers['X-Addon-Token'] = authToken;
+    } else {
+      if (CONFIG.ADDON_TOKEN) headers['X-Addon-Token'] = CONFIG.ADDON_TOKEN;
+      if (CONFIG.API_KEY) headers['X-Api-Key'] = CONFIG.API_KEY;
+    }
     const requestId = randomUUID();
     headers['X-Request-Id'] = requestId;
     headers['X-Correlation-Id'] = correlationId ?? requestId;
     return headers;
   }
 
-  private async rawRequest<T>({ method = 'GET', path, body, query, correlationId }: RequestOptions, baseUrlOverride?: string): Promise<T> {
+  private async rawRequest<T>({ method = 'GET', path, body, query, correlationId, authToken }: RequestOptions, baseUrlOverride?: string): Promise<T> {
     const url = new URL(path + serializeQuery(query), baseUrlOverride || this.baseUrl).toString();
+    const headers = this.getHeaders(correlationId, authToken);
     const requestInit: RequestInit = {
       method,
-      headers: this.getHeaders(correlationId)
+      headers
     };
     if (body !== undefined) {
       requestInit.body = JSON.stringify(body);
     }
+
+    // Log request details for debugging
+    logger.debug({
+      url,
+      method,
+      hasAuthToken: !!authToken,
+      authTokenLength: authToken?.length,
+      headers: { ...headers, 'X-Addon-Token': authToken ? `${authToken.substring(0, 20)}...` : undefined }
+    }, 'Making Clockify API request');
 
     const response = await fetch(url, requestInit);
     if (response.status === 204) {
@@ -141,6 +157,12 @@ export class ClockifyClient {
 
     if (!response.ok) {
       throw new ClockifyHttpError(`Clockify request failed with status ${response.status}`, response.status, json, correlationId);
+    }
+
+    // Check for non-JSON responses (OK status but no valid JSON)
+    if (json === undefined && text.length > 0) {
+      const snippet = text.substring(0, 200);
+      throw new ClockifyHttpError(`Non-JSON response from Clockify: ${snippet}`, 502, undefined, correlationId);
     }
 
     return json as T;
@@ -200,7 +222,7 @@ export class ClockifyClient {
   }
 
   async getDetailedReport(
-    workspaceId: string, 
+    workspaceId: string,
     params: {
       dateRangeStart: string;
       dateRangeEnd: string;
@@ -210,7 +232,8 @@ export class ClockifyClient {
       page?: number;
       pageSize?: number;
     },
-    correlationId?: string
+    correlationId?: string,
+    authToken?: string
   ) {
     // Build proper Detailed Report API request structure
     // Based on: CLOCKIFY_DETAILED_REPORT_API_COMPLETE_GUIDE.md
@@ -231,7 +254,7 @@ export class ClockifyClient {
     };
 
     // Use Reports API endpoint (different from regular API)
-    
+
     return this.request<{
       timeEntries: Array<{ id: string; [key: string]: unknown }>;
       totals: Array<{ [key: string]: unknown }>;
@@ -239,8 +262,18 @@ export class ClockifyClient {
       method: 'POST',
       path: `/workspaces/${workspaceId}/reports/detailed`,
       body,
-      correlationId
+      correlationId,
+      authToken
     }, this.reportsBaseUrl);
+  }
+
+  async getCustomFields(workspaceId: string, correlationId?: string, authToken?: string, baseUrl?: string) {
+    return this.request<Array<{ id: string; name: string; type?: string }>>({
+      method: 'GET',
+      path: `/workspaces/${workspaceId}/custom-fields`,
+      correlationId,
+      authToken
+    }, baseUrl);
   }
 }
 

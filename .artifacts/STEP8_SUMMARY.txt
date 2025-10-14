@@ -1,0 +1,193 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                   STEP 8 E2E TEST - READY TO EXECUTE                 ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+STATUS
+------
+✓ Complete E2E script created: ./scripts/complete_e2e.sh
+✓ Local server available: http://localhost:8080
+✓ All prerequisites satisfied
+
+
+QUICK START
+-----------
+Run the automated E2E script:
+
+    ./scripts/complete_e2e.sh
+
+The script will:
+  1. ✓ Check local server health
+  2. → Prompt for tunnel URL (ngrok/cloudflared)
+  3. → Update .env with public BASE_URL
+  4. → Guide through manifest upload
+  5. → Guide through add-on installation
+  6. → Prompt for iframe JWT (securely)
+  7. → Start API with verbose logging
+  8. → Execute recompute (last 24h)
+  9. → Generate artifacts
+  10. ✓ Display results summary
+
+
+MANUAL STEPS REQUIRED
+----------------------
+During script execution, you'll need to:
+
+A) START TUNNEL (separate terminal):
+   ngrok http 8080
+   OR
+   cloudflared tunnel --url http://localhost:8080
+
+B) UPLOAD MANIFEST:
+   → https://marketplace.clockify.me/apps/console
+   → Set manifest URL: https://your-tunnel-url/manifest.json
+   → Save and deploy
+
+C) INSTALL ADD-ON:
+   → Clockify → Settings → Integrations → Add-ons
+   → Find "xCustom Field Expander"
+   → Click "Install"
+
+D) CAPTURE JWT:
+   → Open Clockify time tracker
+   → Click xCFE sidebar
+   → F12 → Network tab → filter "sidebar"
+   → Copy auth_token value (starts with eyJ)
+
+
+EXPECTED ARTIFACTS
+------------------
+After successful execution:
+
+  .artifacts/recompute_ok.txt   ← Full HTTP response (status, body)
+  .artifacts/puts.txt           ← Sanitized API logs (PUT/PATCH requests)
+
+
+EXPECTED RESULT
+---------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "evaluated": 10,
+  "updated": 5
+}
+
+
+TROUBLESHOOTING
+---------------
+HTTP 401 → JWT expired/invalid
+  • Refresh Clockify page
+  • Copy new auth_token from sidebar request
+  • Re-run script
+
+HTTP 429 → Rate limited
+  • Wait for Retry-After seconds
+  • Re-run script
+
+HTTP 502 → Non-JSON upstream
+  • Check .artifacts/puts.txt for errors
+  • Verify BASE_URL matches manifest
+  • Check tunnel is active
+
+HTTP 5xx → Server error
+  • Check .artifacts/puts.txt for stack trace
+  • Review server logs for errors
+
+
+ALTERNATIVE: MANUAL EXECUTION
+------------------------------
+If you prefer to run steps manually:
+
+# 1. Start tunnel
+ngrok http 8080
+
+# 2. Export variables
+export BASE_URL="https://your-tunnel-url"
+export REAL_JWT="eyJhbGc..."
+
+# 3. Compute time window
+START=$(date -u -v-24H +%FT%TZ 2>/dev/null || date -u -d '24 hours ago' +%FT%TZ)
+END=$(date -u +%FT%TZ)
+
+# 4. Execute recompute
+curl -si -X POST "${BASE_URL}/v1/formulas/recompute?auth_token=${REAL_JWT}" \
+  -H 'content-type: application/json' \
+  -d "{\"startDate\":\"${START}\",\"endDate\":\"${END}\"}" \
+  | tee .artifacts/recompute_ok.txt
+
+# 5. Extract results
+CODE=$(awk '/^HTTP/ {print $2; exit}' .artifacts/recompute_ok.txt)
+UPDATED=$(grep -o '"updated":[0-9]*' .artifacts/recompute_ok.txt | cut -d: -f2)
+echo "HTTP: $CODE | Updated: $UPDATED"
+
+
+VERIFICATION CHECKLIST
+----------------------
+After E2E test passes:
+
+  □ HTTP 200 status received
+  □ JSON body has "evaluated" and "updated" fields
+  □ Updated count matches expected entries
+  □ .artifacts/recompute_ok.txt contains full response
+  □ .artifacts/puts.txt contains PUT/PATCH logs
+  □ No auth tokens visible in puts.txt (sanitized)
+  □ Custom fields updated in Clockify UI
+
+
+NEXT STEPS
+----------
+After successful E2E:
+
+1. Test verify endpoint:
+   curl "${BASE_URL}/v1/formulas/verify?auth_token=${REAL_JWT}&entryId=<id>"
+
+2. Verify custom field updates in Clockify UI
+
+3. Review .artifacts/puts.txt for:
+   • PUT requests to Clockify API
+   • Custom field value changes
+   • Formula evaluation logs
+
+4. Generate additional artifacts:
+   • readback_entry.json (verify endpoint response)
+   • readback_assert.txt (expected vs actual values)
+
+
+SCRIPT FEATURES
+---------------
+✓ Automatic server health check
+✓ Tunnel detection (ngrok/cloudflared)
+✓ .env backup and update
+✓ Server restart with new BASE_URL
+✓ Public URL accessibility verification
+✓ Step-by-step guided workflow
+✓ Secure JWT input (hidden)
+✓ Verbose logging capture
+✓ Log sanitization (redact tokens)
+✓ HTTP status interpretation
+✓ Error handling with fixes
+✓ Colored output for clarity
+✓ Artifact generation
+
+
+ENVIRONMENT
+-----------
+Current .env settings:
+  BASE_URL: https://controller-terrain-usc-confidentiality.trycloudflare.com (inactive)
+  PORT: 8080
+  ADDON_KEY: xcfe.example
+  DEV_ALLOW_UNSIGNED: true
+
+Script will update BASE_URL with your active tunnel URL.
+
+
+═══════════════════════════════════════════════════════════════════════
+
+TL;DR
+-----
+1. Open new terminal: ngrok http 8080
+2. Run: ./scripts/complete_e2e.sh
+3. Follow prompts (paste tunnel URL, upload manifest, install add-on, paste JWT)
+4. Review artifacts: .artifacts/recompute_ok.txt and .artifacts/puts.txt
+
+═══════════════════════════════════════════════════════════════════════

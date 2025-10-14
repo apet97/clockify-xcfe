@@ -92,7 +92,7 @@ describe('settingsService', () => {
       });
 
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT workspace_id, strict_mode, backfill_months as reference_months, region'),
+        expect.stringContaining('SELECT workspace_id, strict_mode, backfill_months as reference_months, region, formulas'),
         ['ws-1']
       );
     });
@@ -177,7 +177,7 @@ describe('settingsService', () => {
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO settings'),
-        ['ws-1', true, 8, 'euw2']
+        ['ws-1', true, 8, 'euw2', null]
       );
 
       expect(mockQuery).toHaveBeenCalledWith(

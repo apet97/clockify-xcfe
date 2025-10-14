@@ -1,0 +1,12 @@
+HTTP/2 401 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 16:57:07 GMT
+etag: W/"28-7TS5L8oNHbc4slGDfUm9L1mnwgk"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: 86d7da71-9cea-493d-abae-d903e6dad453
+x-powered-by: Express
+content-length: 40
+
+{"error":"Invalid authentication token"}

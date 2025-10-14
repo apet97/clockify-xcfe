@@ -1,0 +1,26 @@
+POST /v1/settings?auth_token=*** HTTP/1.1
+Content-Type: application/json
+
+{
+  "formulas": [
+    {"targetId": "", "expr": "test"}
+  ]
+}
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "Invalid settings payload",
+  "details": [
+    {
+      "code": "too_small",
+      "minimum": 1,
+      "type": "string",
+      "inclusive": true,
+      "exact": false,
+      "message": "String must contain at least 1 character(s)",
+      "path": ["formulas", 0, "targetId"]
+    }
+  ]
+}

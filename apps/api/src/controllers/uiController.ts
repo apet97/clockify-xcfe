@@ -20,7 +20,7 @@ type SettingsTabConfig = {
 export const renderSettings: RequestHandler = async (req, res) => {
   const authToken = req.query.auth_token as string;
   const config = req.params.config;
-  
+
   if (!authToken) {
     return res.status(400).send(`
       <!DOCTYPE html>
@@ -46,10 +46,42 @@ export const renderSettings: RequestHandler = async (req, res) => {
   let settingsConfig = null;
   if (config) {
     try {
-      const decodedConfig = decodeURIComponent(config);
+      // Handle double-encoded config (e.g., %257B -> %7B -> {)
+      let decodedConfig = decodeURIComponent(config);
+
+      // If still encoded, decode again
+      if (decodedConfig.includes('%')) {
+        try {
+          decodedConfig = decodeURIComponent(decodedConfig);
+        } catch (e) {
+          // Already decoded, continue
+        }
+      }
+
       settingsConfig = JSON.parse(decodedConfig);
     } catch (error) {
-      console.error('Failed to parse settings config:', error);
+      logger.warn({ config, error: error instanceof Error ? error.message : String(error) }, 'Failed to parse settings config');
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>xCFE Settings - Error</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+            .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 4px; }
+            pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+          </style>
+        </head>
+        <body>
+          <div class="error">
+            <h3>Configuration Error</h3>
+            <p>Failed to parse settings configuration.</p>
+            <pre>${error instanceof Error ? error.message : 'Invalid JSON format'}</pre>
+          </div>
+        </body>
+        </html>
+      `);
     }
   }
 
@@ -216,7 +248,7 @@ export const renderSettings: RequestHandler = async (req, res) => {
           <div class="subtitle">Configure your Custom Field Expander preferences</div>
         </div>
         
-        <form id="settingsForm">
+        <form id="settingsForm" onsubmit="return false;">
           ${settingsConfig && settingsConfig.tabs ? settingsConfig.tabs.map((tab: SettingsTabConfig) => `
             <div class="tab">
               <div class="tab-header">${tab.name}</div>
@@ -261,22 +293,22 @@ export const renderSettings: RequestHandler = async (req, res) => {
           
           try {
             showStatus('Saving settings...', 'info');
-            
-            // Here you would typically send the settings to your API
-            // For now, we'll just simulate a successful save
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
+            const resp = await fetch('/v1/settings?' + new URLSearchParams({ auth_token: authToken }).toString(), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(settings)
+            });
+            if (!resp.ok) {
+              const text = await resp.text();
+              throw new Error(text || ('HTTP ' + resp.status));
+            }
             showStatus('Settings saved successfully!', 'success');
-            
-            // In a real implementation, you might want to notify the parent window
             if (window.parent && window.parent.postMessage) {
-              window.parent.postMessage({
-                action: 'settingsUpdated',
-                settings: settings
-              }, '*');
+              window.parent.postMessage({ title: 'settingsUpdated', body: { settings } }, '*');
             }
           } catch (error) {
-            showStatus('Failed to save settings: ' + error.message, 'error');
+            const msg = error instanceof Error ? error.message : String(error);
+            showStatus('Failed to save settings: ' + msg, 'error');
           }
         }
         
@@ -370,7 +402,7 @@ export const renderSidebar: RequestHandler = async (req, res) => {
             <div class="error">
               <h3>Authentication Failed</h3>
               <p>Invalid or expired authentication token.</p>
-              <button onclick="window.top?.postMessage({action:'refreshAddonToken'}, '*')">
+              <button onclick="window.top?.postMessage({title:'refreshAddonToken'}, '*')">
                 Refresh Token
               </button>
             </div>
@@ -443,6 +475,41 @@ export const renderSidebar: RequestHandler = async (req, res) => {
             color: white;
             margin-bottom: 12px;
           }
+
+          .toast {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+          }
+
+          @keyframes slideIn {
+            from {
+              transform: translateX(400px);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+
+          .toast.success {
+            background: #4caf50;
+            color: white;
+          }
+
+          .toast.error {
+            background: #f44336;
+            color: white;
+          }
           
           .info-row {
             display: flex;
@@ -472,21 +539,26 @@ export const renderSidebar: RequestHandler = async (req, res) => {
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, opacity 0.2s;
             margin-bottom: 8px;
           }
-          
-          .button:hover {
+
+          .button:hover:not(:disabled) {
             background: #1565c0;
           }
-          
+
+          .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+
           .button.secondary {
             background: #f5f5f5;
             color: #333;
             border: 1px solid #ddd;
           }
-          
-          .button.secondary:hover {
+
+          .button.secondary:hover:not(:disabled) {
             background: #eeeeee;
           }
           
@@ -513,14 +585,125 @@ export const renderSidebar: RequestHandler = async (req, res) => {
             padding-top: 16px;
             border-top: 1px solid #e0e0e0;
           }
-          
+
+          /* Admin Panel Styles */
+          .admin-panel {
+            margin-top: 24px;
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            overflow: hidden;
+            display: none;
+          }
+
+          .admin-panel.visible {
+            display: block;
+          }
+
+          .admin-header {
+            background: #1976d2;
+            color: white;
+            padding: 12px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .admin-body {
+            padding: 16px;
+            background: #f8f9fa;
+          }
+
+          .admin-body.collapsed {
+            display: none;
+          }
+
+          .form-group {
+            margin-bottom: 16px;
+          }
+
+          .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #333;
+          }
+
+          .form-input, .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+          }
+
+          .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #1976d2;
+          }
+
+          .formula-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: flex-end;
+          }
+
+          .formula-row .form-group {
+            margin-bottom: 0;
+            flex: 1;
+          }
+
+          .btn-small {
+            padding: 8px 12px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+          }
+
+          .btn-small:hover {
+            background: #d32f2f;
+          }
+
+          .btn-add {
+            background: #4caf50;
+          }
+
+          .btn-add:hover {
+            background: #388e3c;
+          }
+
+          .date-inputs {
+            display: flex;
+            gap: 12px;
+          }
+
+          .date-inputs .form-group {
+            flex: 1;
+          }
+
           @media (max-width: 480px) {
             body {
               padding: 12px;
             }
-            
+
             .container {
               max-width: 100%;
+            }
+
+            .formula-row {
+              flex-direction: column;
+            }
+
+            .date-inputs {
+              flex-direction: column;
             }
           }
         </style>
@@ -557,69 +740,122 @@ export const renderSidebar: RequestHandler = async (req, res) => {
             <div class="loading">Loading recent time entries...</div>
           </div>
           
-          <button class="button" onclick="refreshData()">
+          <button id="refreshButton" class="button" onclick="refreshData()" aria-label="Refresh time entry data">
             🔄 Refresh Data
           </button>
-          
-          <button class="button secondary" onclick="refreshToken()">
+
+          <button class="button secondary" onclick="refreshToken()" aria-label="Refresh authentication token">
             🔑 Refresh Token
           </button>
-          
+
+          <!-- Admin Panel (shown only when isAdmin=true) -->
+          <div id="adminPanel" class="admin-panel">
+            <div class="admin-header" onclick="toggleAdminPanel()">
+              <span>⚙️ Admin: Formulas</span>
+              <span id="adminToggle">▼</span>
+            </div>
+            <div id="adminBody" class="admin-body">
+              <h4 style="margin-top: 0; margin-bottom: 16px; font-size: 14px;">Formula Configuration</h4>
+
+              <div id="formulaList"></div>
+
+              <button class="button btn-small btn-add" onclick="addFormulaRow()" style="width: auto; margin-bottom: 16px;">
+                + Add Formula
+              </button>
+
+              <button class="button" onclick="saveFormulas()">💾 Save Formulas</button>
+
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
+
+              <h4 style="margin-bottom: 16px; font-size: 14px;">Evaluate Now</h4>
+
+              <div class="date-inputs">
+                <div class="form-group">
+                  <label class="form-label">Start Date</label>
+                  <input type="datetime-local" id="evalStart" class="form-input" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">End Date</label>
+                  <input type="datetime-local" id="evalEnd" class="form-input" />
+                </div>
+              </div>
+
+              <button class="button" onclick="evaluateNow()">▶️ Evaluate Now</button>
+            </div>
+          </div>
+
           <div class="footer">
             xCFE v1.0.0 • Ready for formulas
           </div>
         </div>
 
+        <div id="toast" class="toast"></div>
+
         <script>
-          const authToken = '${authToken}';
+          let authToken = '${authToken}';
           const backendUrl = '${backendUrl}';
           const workspaceId = '${workspaceId}';
           const userId = '${userId}';
           const isDev = ${isDev};
+
+          function showStatus(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.style.display = 'block';
+
+            setTimeout(function() {
+              toast.style.display = 'none';
+            }, 3000);
+          }
           
           async function fetchTimeEntries() {
+            const dataDiv = document.getElementById('timeEntryData');
+            const refreshButton = document.getElementById('refreshButton');
+
             try {
-              const dataDiv = document.getElementById('timeEntryData');
+              // Disable button during fetch
+              if (refreshButton) refreshButton.disabled = true;
               dataDiv.innerHTML = '<div class="loading">Loading recent time entries...</div>';
-              
+
               // Calculate date range for last 1 day
               const to = new Date();
               const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
-              
+
               // Use our proxy endpoint instead of calling Clockify directly
-              const url = window.location.origin + '/v1/proxy/time-entries?' + 
-                'start=' + from.toISOString() + 
-                '&end=' + to.toISOString() + 
+              const url = window.location.origin + '/v1/proxy/time-entries?' +
+                'start=' + from.toISOString() +
+                '&end=' + to.toISOString() +
                 '&auth_token=' + encodeURIComponent(authToken);
-              
+
               const response = await fetch(url, {
                 headers: {
                   'Accept': 'application/json'
                 }
               });
-              
+
               if (!response.ok) {
                 throw new Error('Failed to fetch: ' + response.status);
               }
-              
+
               const data = await response.json();
               const entries = data || [];
-              
+
               let totalDuration = 0;
               entries.forEach(entry => {
                 if (entry.timeInterval?.duration) {
                   // Parse ISO 8601 duration or numeric seconds
-                  const duration = typeof entry.timeInterval.duration === 'string' 
+                  const duration = typeof entry.timeInterval.duration === 'string'
                     ? parseDuration(entry.timeInterval.duration)
                     : entry.timeInterval.duration;
                   totalDuration += duration;
                 }
               });
-              
+
               const hours = Math.floor(totalDuration / 3600);
               const minutes = Math.floor((totalDuration % 3600) / 60);
-              
-              dataDiv.innerHTML = 
+
+              dataDiv.innerHTML =
                 '<div class="status-card">' +
                 '<div class="info-row">' +
                 '<span class="info-label">Entries (24h):</span>' +
@@ -630,11 +866,14 @@ export const renderSidebar: RequestHandler = async (req, res) => {
                 '<span class="info-value">' + hours + 'h ' + minutes + 'm</span>' +
                 '</div>' +
                 '</div>';
-              
+
             } catch (error) {
               console.error('Fetch error:', error);
-              document.getElementById('timeEntryData').innerHTML = 
+              dataDiv.innerHTML =
                 '<div class="error">Failed to load time entries: ' + error.message + '</div>';
+            } finally {
+              // Re-enable button
+              if (refreshButton) refreshButton.disabled = false;
             }
           }
           
@@ -656,19 +895,220 @@ export const renderSidebar: RequestHandler = async (req, res) => {
           
           function refreshToken() {
             if (window.top && window.top.postMessage) {
-              window.top.postMessage({action: 'refreshAddonToken'}, '*');
+              // Per Clockify marketplace docs: use 'title' not 'action'
+              window.top.postMessage({title: 'refreshAddonToken'}, '*');
             } else {
               alert('Token refresh not available in this context');
             }
           }
-          
+
+          // Listen for token refresh response from Clockify
+          window.addEventListener('message', function(event) {
+            const { title, body } = event.data || {};
+
+            if (title === 'addonTokenRefreshed' && body?.auth_token) {
+              // Update the token
+              authToken = body.auth_token;
+              console.log('Token refreshed successfully');
+
+              // Show success notification
+              showStatus('Token refreshed successfully', 'success');
+
+              // Re-fetch time entries with new token
+              fetchTimeEntries();
+            } else if (title === 'refreshAddonTokenFailed') {
+              console.error('Token refresh failed');
+              showStatus('Token refresh failed', 'error');
+            }
+          });
+
+          // Admin Panel State
+          let customFields = [];
+          let formulas = [];
+
+          // Check admin status and show panel
+          async function checkAdmin() {
+            try {
+              const resp = await fetch(window.location.origin + '/v1/me?auth_token=' + encodeURIComponent(authToken));
+              if (resp.ok) {
+                const data = await resp.json();
+                if (data.isAdmin) {
+                  document.getElementById('adminPanel').classList.add('visible');
+                  initAdminPanel();
+                }
+              }
+            } catch (error) {
+              console.error('Failed to check admin status:', error);
+            }
+          }
+
+          async function initAdminPanel() {
+            await loadCustomFields();
+            await loadFormulas();
+            setDefaultDateRange();
+          }
+
+          async function loadCustomFields() {
+            try {
+              const resp = await fetch(window.location.origin + '/v1/cf/fields?auth_token=' + encodeURIComponent(authToken));
+              if (resp.ok) {
+                customFields = await resp.json();
+              }
+            } catch (error) {
+              console.error('Failed to load custom fields:', error);
+            }
+          }
+
+          async function loadFormulas() {
+            try {
+              const resp = await fetch(window.location.origin + '/v1/settings?auth_token=' + encodeURIComponent(authToken));
+              if (resp.ok) {
+                const settings = await resp.json();
+                formulas = settings.formulas || [];
+                renderFormulaList();
+              }
+            } catch (error) {
+              console.error('Failed to load formulas:', error);
+              formulas = [];
+              renderFormulaList();
+            }
+          }
+
+          function renderFormulaList() {
+            const container = document.getElementById('formulaList');
+            if (formulas.length === 0) {
+              container.innerHTML = '<p style="color: #666; font-size: 13px; margin-bottom: 12px;">No formulas configured. Click "+ Add Formula" to get started.</p>';
+              return;
+            }
+
+            container.innerHTML = formulas.map((f, idx) =>
+              '<div class="formula-row">' +
+              '<div class="form-group">' +
+              '<label class="form-label">Target CF</label>' +
+              '<select class="form-select" data-idx="' + idx + '" data-field="targetId">' +
+              '<option value="">Select...</option>' +
+              customFields.map(cf => '<option value="' + cf.id + '"' + (cf.id === f.targetId ? ' selected' : '') + '>' + cf.name + '</option>').join('') +
+              '</select>' +
+              '</div>' +
+              '<div class="form-group">' +
+              '<label class="form-label">Expression</label>' +
+              '<input type="text" class="form-input" value="' + (f.expr || '') + '" data-idx="' + idx + '" data-field="expr" />' +
+              '</div>' +
+              '<button class="btn-small" onclick="removeFormulaRow(' + idx + ')">✕</button>' +
+              '</div>'
+            ).join('');
+          }
+
+          function addFormulaRow() {
+            formulas.push({ targetId: '', expr: '' });
+            renderFormulaList();
+          }
+
+          function removeFormulaRow(idx) {
+            formulas.splice(idx, 1);
+            renderFormulaList();
+          }
+
+          async function saveFormulas() {
+            // Collect current values from DOM
+            const rows = document.querySelectorAll('.formula-row');
+            const updated = [];
+            rows.forEach((row, idx) => {
+              const targetSelect = row.querySelector('[data-field="targetId"]');
+              const exprInput = row.querySelector('[data-field="expr"]');
+              if (targetSelect && exprInput) {
+                const targetId = targetSelect.value.trim();
+                const expr = exprInput.value.trim();
+                // Only include formulas with both fields filled
+                if (targetId && expr) {
+                  updated.push({ targetId, expr });
+                }
+              }
+            });
+
+            try {
+              const resp = await fetch(window.location.origin + '/v1/settings?auth_token=' + encodeURIComponent(authToken), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ formulas: updated })
+              });
+
+              if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(text || 'HTTP ' + resp.status);
+              }
+
+              formulas = updated;
+              showStatus('Formulas saved successfully', 'success');
+            } catch (error) {
+              showStatus('Failed to save formulas: ' + error.message, 'error');
+            }
+          }
+
+          async function evaluateNow() {
+            const startInput = document.getElementById('evalStart');
+            const endInput = document.getElementById('evalEnd');
+
+            if (!startInput.value || !endInput.value) {
+              showStatus('Please select start and end dates', 'error');
+              return;
+            }
+
+            const startDate = new Date(startInput.value).toISOString();
+            const endDate = new Date(endInput.value).toISOString();
+
+            try {
+              const resp = await fetch(window.location.origin + '/v1/formulas/recompute?auth_token=' + encodeURIComponent(authToken), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ startDate, endDate })
+              });
+
+              if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(text || 'HTTP ' + resp.status);
+              }
+
+              const result = await resp.json();
+              showStatus('Evaluated: ' + result.evaluated + ', Updated: ' + result.updated, 'success');
+            } catch (error) {
+              showStatus('Evaluation failed: ' + error.message, 'error');
+            }
+          }
+
+          function toggleAdminPanel() {
+            const body = document.getElementById('adminBody');
+            const toggle = document.getElementById('adminToggle');
+            if (body.classList.contains('collapsed')) {
+              body.classList.remove('collapsed');
+              toggle.textContent = '▼';
+            } else {
+              body.classList.add('collapsed');
+              toggle.textContent = '▶';
+            }
+          }
+
+          function setDefaultDateRange() {
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+            // Format as datetime-local (YYYY-MM-DDTHH:MM)
+            const formatDate = (d) => {
+              const pad = (n) => String(n).padStart(2, '0');
+              return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            };
+
+            document.getElementById('evalStart').value = formatDate(yesterday);
+            document.getElementById('evalEnd').value = formatDate(now);
+          }
+
           // Load data on page load
           document.addEventListener('DOMContentLoaded', function() {
             if (!isDev) {
               fetchTimeEntries();
             } else {
               // Show demo data in development
-              document.getElementById('timeEntryData').innerHTML = 
+              document.getElementById('timeEntryData').innerHTML =
                 '<div class="status-card">' +
                 '<div class="info-row">' +
                 '<span class="info-label">Entries (24h):</span>' +
@@ -680,6 +1120,9 @@ export const renderSidebar: RequestHandler = async (req, res) => {
                 '</div>' +
                 '</div>';
             }
+
+            // Check admin status
+            checkAdmin();
           });
         </script>
       </body>

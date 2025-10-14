@@ -1,0 +1,12 @@
+HTTP/2 500 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 02:16:58 GMT
+etag: W/"3a-IzaPZ76qfZF4J2AGqcSz7kVU3i8"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: 35d18d6a-8a7e-4b03-9d75-727c32bbec5e
+x-powered-by: Express
+content-length: 58
+
+{"error":"Internal server error during formula recompute"}

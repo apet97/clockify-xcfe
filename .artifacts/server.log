@@ -1,0 +1,10 @@
+
+> @xcfe/api@0.1.0 dev /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/apps/api
+> tsx watch src/server.ts
+
+{"level":"info","time":"2025-10-12T21:07:50.264Z","pid":99420,"env":"development","msg":"Skipping database checks for addon development mode"}
+{"level":"info","time":"2025-10-12T21:07:50.265Z","pid":99420,"env":"development","env":{"nodeEnv":"development","port":8080,"workspaceId":"dev-workspace","baseUrl":"https://api.clockify.me/api/v1","region":"default","adminUiOrigin":"not-set"},"msg":"xCFE API listening"}
+{"level":"info","time":"2025-10-12T21:07:57.569Z","pid":99420,"env":"development","req":{"id":"0c6c61a2-b27f-4499-b6f2-956d2857fe8e","method":"GET","url":"/manifest","query":{},"params":{},"headers":{"host":"localhost:8080","user-agent":"curl/8.7.1","accept":"*/*"},"remoteAddress":"::1","remotePort":61427},"correlationId":"0c6c61a2-b27f-4499-b6f2-956d2857fe8e","res":{"statusCode":200,"headers":{"x-powered-by":"Express","vary":"Origin","access-control-allow-credentials":"true","x-correlation-id":"0c6c61a2-b27f-4499-b6f2-956d2857fe8e","content-type":"application/json; charset=utf-8","content-length":"1233","etag":"W/\"4d1-S4E3AXqVP1JKOXh0aQFPvQqO+a0\""}},"responseTime":2,"msg":"request completed"}
+/Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/apps/api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @xcfe/api@0.1.0 dev: `tsx watch src/server.ts`
+Exit status 143

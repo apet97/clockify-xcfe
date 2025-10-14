@@ -1,0 +1,13 @@
+HTTP/1.1 500 Internal Server Error
+X-Powered-By: Express
+Vary: Origin
+Access-Control-Allow-Credentials: true
+x-correlation-id: 54186923-f744-4d05-9b92-b5dbc38bcee5
+Content-Type: application/json; charset=utf-8
+Content-Length: 58
+ETag: W/"3a-IzaPZ76qfZF4J2AGqcSz7kVU3i8"
+Date: Sat, 11 Oct 2025 17:04:45 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"Internal server error during formula recompute"}

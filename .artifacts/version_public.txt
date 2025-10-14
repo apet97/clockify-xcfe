@@ -1,0 +1,12 @@
+HTTP/2 200 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 16:57:35 GMT
+etag: W/"71-bJRLgKOr8ZtBxxtQjA5dHhjBQQI"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: 603ba8ef-e443-408c-8dd4-ee579da14cad
+x-powered-by: Express
+content-length: 113
+
+{"commit":"dev","builtAt":"2025-10-10T16:57:35.056Z","baseUrl":"https://9e5a48f11537.ngrok-free.app","pid":20788}

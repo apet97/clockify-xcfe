@@ -1,0 +1,12 @@
+HTTP/2 200 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 16:55:58 GMT
+etag: W/"74-Td783LGpw6CjOh55LoXqET3jGRs"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: a48f73a8-d064-43d8-bde6-140d91a92523
+x-powered-by: Express
+content-length: 116
+
+{"event":"SETTINGS_UPDATED","addonId":"xcfe.example","workspaceId":"ws-test","timestamp":"2025-10-10T16:55:56.296Z"}

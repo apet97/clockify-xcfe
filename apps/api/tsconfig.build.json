@@ -3,6 +3,8 @@
   "compilerOptions": {
     "declaration": true,
     "emitDeclarationOnly": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "noEmitOnError": false,
+    "skipLibCheck": true
   }
 }

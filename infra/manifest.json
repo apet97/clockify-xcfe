@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "1.3",
   "name": "xCustom Field Expander",
   "slug": "xcfe",
   "version": "1.0.0",
@@ -26,8 +27,8 @@
       }
     ]
   },
-  "iframeUrl": "https://admin.xcfe.example.com/ui/sidebar",
-  "webhookUrl": "https://api.xcfe.example.com/v1/webhooks/clockify",
+  "iframeUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/ui/sidebar",
+  "webhookUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/v1/webhooks/clockify",
   "regions": ["global", "euc1", "use2", "euw2", "apse2"],
   "features": {
     "backfill": {

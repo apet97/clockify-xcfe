@@ -1,9 +1,11 @@
 import type { RequestHandler } from 'express';
+import { z } from 'zod';
 import { verifyClockifyJwt } from '../lib/jwt.js';
 import { upsertInstallation, deleteInstallation } from '../services/installationService.js';
 import { updateWorkspaceSettings } from '../services/settingsService.js';
 import { CONFIG } from '../config/index.js';
 import { logger } from '../lib/logger.js';
+import { recordLifecycleEvent } from '../lib/lifecycleTracker.js';
 
 class LifecycleAuthError extends Error {}
 
@@ -17,18 +19,33 @@ const verifyLifecycleToken = async (token: string) => {
   }
 };
 
-export const handleInstalled: RequestHandler = async (req, res) => {
+const getLifecycleClaims = async (req: any) => {
   const token = req.headers['x-addon-lifecycle-token'] as string;
-  if (!token) {
-    return res.status(401).json({ error: 'Missing lifecycle token' });
+  
+  // Allow bypassing token verification in development mode
+  if (CONFIG.DEV_ALLOW_UNSIGNED && !token) {
+    return {
+      addonId: 'dev-addon-id',
+      workspaceId: 'dev-workspace-id',
+      userId: 'dev-user-id',
+      sub: CONFIG.ADDON_KEY
+    } as any;
   }
 
+  if (!token) {
+    throw new LifecycleAuthError('Missing lifecycle token');
+  }
+
+  return await verifyLifecycleToken(token);
+};
+
+export const handleInstalled: RequestHandler = async (req, res) => {
   let claims;
   try {
-    claims = await verifyLifecycleToken(token);
+    claims = await getLifecycleClaims(req);
   } catch (error) {
     logger.warn({ err: error }, 'Lifecycle token verification failed');
-    return res.status(401).json({ error: 'Invalid lifecycle token' });
+    return res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid lifecycle token' });
   }
 
   const { addonId, workspaceId, authToken } = req.body;
@@ -56,21 +73,18 @@ export const handleInstalled: RequestHandler = async (req, res) => {
 
   logger.info({ addonId, workspaceId, userId: claims.userId }, 'Add-on installed successfully');
 
+  recordLifecycleEvent('INSTALLED', addonId, workspaceId);
+
   res.status(200).json({ success: true });
 };
 
 export const handleStatusChanged: RequestHandler = async (req, res) => {
-  const token = req.headers['x-addon-lifecycle-token'] as string;
-  if (!token) {
-    return res.status(401).json({ error: 'Missing lifecycle token' });
-  }
-
   let claims;
   try {
-    claims = await verifyLifecycleToken(token);
+    claims = await getLifecycleClaims(req);
   } catch (error) {
     logger.warn({ err: error }, 'Lifecycle token verification failed');
-    return res.status(401).json({ error: 'Invalid lifecycle token' });
+    return res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid lifecycle token' });
   }
 
   const { addonId, workspaceId, status } = req.body;
@@ -97,28 +111,40 @@ export const handleStatusChanged: RequestHandler = async (req, res) => {
 
   logger.info({ addonId, workspaceId, status, userId: claims.userId }, 'Add-on status changed');
 
+  recordLifecycleEvent('STATUS_CHANGED', addonId, workspaceId);
+
   res.status(200).json({ success: true });
 };
 
-export const handleSettingsUpdated: RequestHandler = async (req, res) => {
-  const token = req.headers['x-addon-lifecycle-token'] as string;
-  if (!token) {
-    return res.status(401).json({ error: 'Missing lifecycle token' });
-  }
+const settingsPayloadSchema = z.object({
+  addonId: z.string().min(1, 'addonId is required'),
+  workspaceId: z.string().min(1, 'workspaceId is required'),
+  settings: z.record(z.any()).optional()
+});
 
+export const handleSettingsUpdated: RequestHandler = async (req, res) => {
   let claims;
   try {
-    claims = await verifyLifecycleToken(token);
+    claims = await getLifecycleClaims(req);
   } catch (error) {
     logger.warn({ err: error }, 'Lifecycle token verification failed');
-    return res.status(401).json({ error: 'Invalid lifecycle token' });
+    return res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid lifecycle token' });
   }
 
-  const { addonId, workspaceId, settings } = req.body;
-
-  if (!addonId || !workspaceId) {
-    return res.status(400).json({ error: 'Missing required settings data' });
+  let validated;
+  try {
+    validated = settingsPayloadSchema.parse(req.body);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'invalid_settings_payload',
+        details: error.errors
+      });
+    }
+    return res.status(400).json({ error: 'Invalid settings payload' });
   }
+
+  const { addonId, workspaceId, settings } = validated;
 
   if (CONFIG.SKIP_DATABASE_CHECKS) {
     logger.info(
@@ -181,21 +207,18 @@ export const handleSettingsUpdated: RequestHandler = async (req, res) => {
     'Add-on settings updated'
   );
 
+  recordLifecycleEvent('SETTINGS_UPDATED', addonId, workspaceId);
+
   res.status(200).json({ success: true });
 };
 
 export const handleDeleted: RequestHandler = async (req, res) => {
-  const token = req.headers['x-addon-lifecycle-token'] as string;
-  if (!token) {
-    return res.status(401).json({ error: 'Missing lifecycle token' });
-  }
-
   let claims;
   try {
-    claims = await verifyLifecycleToken(token);
+    claims = await getLifecycleClaims(req);
   } catch (error) {
     logger.warn({ err: error }, 'Lifecycle token verification failed');
-    return res.status(401).json({ error: 'Invalid lifecycle token' });
+    return res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid lifecycle token' });
   }
 
   const { addonId, workspaceId } = req.body;
@@ -217,6 +240,8 @@ export const handleDeleted: RequestHandler = async (req, res) => {
   }
 
   logger.info({ addonId, workspaceId, userId: claims.userId }, 'Add-on deleted successfully');
+
+  recordLifecycleEvent('DELETED', addonId, workspaceId);
 
   res.status(200).json({ success: true });
 };

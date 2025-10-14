@@ -7,7 +7,11 @@ import { logger } from '../lib/logger.js';
 export const settingsInputSchema = z.object({
   strict_mode: z.boolean().optional(),
   reference_months: z.number().int().min(1).max(12).optional(),
-  region: z.string().optional()
+  region: z.string().optional(),
+  formulas: z.array(z.object({
+    targetId: z.string().min(1),
+    expr: z.string().min(1)
+  })).optional()
 });
 
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
@@ -17,6 +21,7 @@ export type WorkspaceSettings = {
   strict_mode: boolean;
   reference_months: number;
   region?: string | null;
+  formulas?: Array<{ targetId: string; expr: string }>;
 };
 
 // Default settings derived from config
@@ -42,7 +47,7 @@ export const getWorkspaceSettings = async (workspaceId: string): Promise<Workspa
 
   try {
     const { rows } = await db.query<WorkspaceSettings>(
-      `SELECT workspace_id, strict_mode, backfill_months as reference_months, region
+      `SELECT workspace_id, strict_mode, backfill_months as reference_months, region, formulas
        FROM settings
        WHERE workspace_id = $1`,
       [workspaceId]
@@ -87,39 +92,57 @@ export const updateWorkspaceSettings = async (
   try {
     // Build the update query dynamically based on provided fields
     const updates: string[] = [];
-    const values: unknown[] = [workspaceId];
-    let paramIndex = 2;
+    let paramIndex = 6; // Start after INSERT parameters ($1-$5)
 
     if (validated.strict_mode !== undefined) {
       updates.push(`strict_mode = $${paramIndex++}`);
-      values.push(validated.strict_mode);
     }
 
     if (validated.reference_months !== undefined) {
       updates.push(`backfill_months = $${paramIndex++}`);
-      values.push(validated.reference_months);
     }
 
     if (validated.region !== undefined) {
       updates.push(`region = $${paramIndex++}`);
-      values.push(validated.region);
+    }
+
+    if (validated.formulas !== undefined) {
+      updates.push(`formulas = $${paramIndex++}`);
     }
 
     updates.push(`updated_at = NOW()`);
 
+    // Build values array with INSERT params first, then UPDATE params
+    const values: unknown[] = [
+      workspaceId, // $1
+      validated.strict_mode ?? DEFAULT_SETTINGS.strict_mode, // $2
+      validated.reference_months ?? DEFAULT_SETTINGS.reference_months, // $3
+      validated.region ?? DEFAULT_SETTINGS.region, // $4
+      validated.formulas ? JSON.stringify(validated.formulas) : null, // $5
+    ];
+
+    // Add UPDATE parameters (only for fields that are being updated)
+    if (validated.strict_mode !== undefined) {
+      values.push(validated.strict_mode);
+    }
+    if (validated.reference_months !== undefined) {
+      values.push(validated.reference_months);
+    }
+    if (validated.region !== undefined) {
+      values.push(validated.region);
+    }
+    if (validated.formulas !== undefined) {
+      values.push(JSON.stringify(validated.formulas));
+    }
+
     // Use INSERT ... ON CONFLICT to upsert
     const { rows } = await db.query<WorkspaceSettings>(
-      `INSERT INTO settings (workspace_id, strict_mode, backfill_months, region, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `INSERT INTO settings (workspace_id, strict_mode, backfill_months, region, formulas, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
        ON CONFLICT (workspace_id)
        DO UPDATE SET ${updates.join(', ')}
-       RETURNING workspace_id, strict_mode, backfill_months as reference_months, region`,
-      [
-        workspaceId,
-        validated.strict_mode ?? DEFAULT_SETTINGS.strict_mode,
-        validated.reference_months ?? DEFAULT_SETTINGS.reference_months,
-        validated.region ?? DEFAULT_SETTINGS.region
-      ]
+       RETURNING workspace_id, strict_mode, backfill_months as reference_months, region, formulas`,
+      values
     );
 
     logger.info({ workspaceId, updates: validated }, 'Workspace settings updated');

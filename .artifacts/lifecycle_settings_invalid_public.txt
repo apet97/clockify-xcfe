@@ -1,0 +1,12 @@
+HTTP/2 400 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 02:19:41 GMT
+etag: W/"10a-pxXFKFY1Pm7TZTHXpxSakQBzZ5c"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: f3d272fc-1863-47f7-8ebc-f2121ba7212b
+x-powered-by: Express
+content-length: 266
+
+{"error":"invalid_settings_payload","details":[{"code":"invalid_type","expected":"string","received":"undefined","path":["addonId"],"message":"Required"},{"code":"invalid_type","expected":"string","received":"undefined","path":["workspaceId"],"message":"Required"}]}

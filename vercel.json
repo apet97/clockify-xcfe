@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm install && pnpm run build",
+  "builds": [
+    { "src": "apps/api/src/server.ts", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/manifest.json", "dest": "/apps/api/src/server.ts" },
+    { "src": "/api/(.*)", "dest": "/apps/api/src/server.ts" },
+    { "src": "/ui/(.*)", "dest": "/apps/api/src/server.ts" },
+    { "src": "/(.*)", "dest": "/apps/api/src/server.ts" }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

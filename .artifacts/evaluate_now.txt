@@ -1,0 +1,21 @@
+POST /v1/formulas/recompute?auth_token=*** HTTP/1.1
+Content-Type: application/json
+
+{
+  "startDate": "2025-01-09T00:00:00.000Z",
+  "endDate": "2025-01-10T00:00:00.000Z"
+}
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "evaluated": 12,
+  "updated": 12,
+  "workspaceId": "672f9cf4ad6f45299c3e3de2",
+  "userId": "672f9cf4ad6f45299c3e3de1",
+  "dateRange": {
+    "startDate": "2025-01-09T00:00:00.000Z",
+    "endDate": "2025-01-10T00:00:00.000Z"
+  }
+}

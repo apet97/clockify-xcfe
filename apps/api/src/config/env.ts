@@ -23,7 +23,7 @@ const envSchema = z.object({
     .default('http://localhost:8080'),
   
   // Marketplace Add-on Configuration
-  ADDON_KEY: z.string().min(1).default('xcfe.example'),
+  ADDON_KEY: z.string().min(1).default('xcfe-custom-field-expander'),
   ADDON_NAME: z.string().min(1).default('xCustom Field Expander'),
   MIN_PLAN: z.enum(['FREE', 'BASIC', 'PRO', 'ENTERPRISE']).default('FREE'),
   RSA_PUBLIC_KEY_PEM: z
@@ -46,7 +46,7 @@ const envSchema = z.object({
   API_KEY: z.string().min(1).optional(),
   ADDON_ID: z.string().optional(),
   WEBHOOK_PUBLIC_URL: z.string().url().optional(),
-  ADMIN_UI_ORIGIN: z.string().url().optional(),
+  ADMIN_UI_ORIGIN: z.string().min(1).optional(),
   WORKSPACE_ID: z.string().min(1).default('dev-workspace'),
   DATABASE_URL: z.string().min(1),
   ENCRYPTION_KEY: encryptionKeySchema,

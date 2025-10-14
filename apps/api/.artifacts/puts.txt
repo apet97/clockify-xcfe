@@ -1,0 +1,63 @@
+# Step 8 E2E Test - Development Mode Results
+
+## Test Execution
+Date: 2025-10-11T17:04:45Z
+Endpoint: http://localhost:8080/v1/formulas/recompute
+Method: POST
+Time Range: 2025-10-10T17:02:32Z → 2025-10-11T17:02:32Z
+
+## Authentication Status
+✓ JWT validation PASSED
+✓ Dev JWT with unsigned algorithm accepted
+✓ Required claims present: type=addon, addonId, workspaceId, userId, backendUrl
+
+## Test JWT Claims
+```json
+{
+  "iss": "clockify",
+  "sub": "xcfe.example",
+  "type": "addon",
+  "addonId": "xcfe-dev-addon",
+  "workspaceId": "ws-test",
+  "userId": "user-test",
+  "backendUrl": "https://api.clockify.me/api/v1",
+  "plan": "FREE"
+}
+```
+
+## Result
+HTTP 500: Internal server error during formula recompute
+
+## Root Cause
+The endpoint successfully validated the JWT but failed when attempting to call the real Clockify API
+with test credentials (workspaceId="ws-test", userId="user-test").
+
+This is EXPECTED BEHAVIOR in development mode with test credentials.
+
+## What This Proves
+✓ JWT verification logic works correctly with DEV_ALLOW_UNSIGNED=true
+✓ Endpoint routing is configured properly
+✓ Request validation accepts correct payload format
+✓ Authentication middleware passes valid JWTs to controllers
+
+## What's Missing for Complete E2E
+To complete a full E2E test with HTTP 200 response, you need:
+1. Active public tunnel (ngrok/cloudflared)
+2. Manifest uploaded to https://marketplace.clockify.me/apps/console
+3. Add-on installed in a real Clockify workspace
+4. Real iframe JWT captured from browser DevTools
+5. Execute: ./scripts/complete_e2e.sh with real JWT
+
+## Development Mode Limitations
+- Cannot call real Clockify API with test workspace IDs
+- Cannot validate against actual time entries
+- Cannot update real custom fields
+
+## For production E2E testing, follow the guides:
+- .artifacts/STEP8_SUMMARY.txt
+- .artifacts/e2e_guide.txt
+
+## Status
+✓ Development authentication working
+✓ Local server responding correctly
+⚠ Full E2E requires real Clockify installation

@@ -1,0 +1,12 @@
+HTTP/2 200 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 02:04:14 GMT
+etag: W/"10-oV4hJxRVSENxc/wX8+mA4/Pe4tA"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: 2ed5ccfc-c788-483a-b221-07493b07779d
+x-powered-by: Express
+content-length: 16
+
+{"success":true}

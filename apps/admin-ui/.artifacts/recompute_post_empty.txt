@@ -1,0 +1,16 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    42  100    40  100     2   2853    142 --:--:-- --:--:-- --:--:--  3000
+HTTP/1.1 401 Unauthorized
+X-Powered-By: Express
+Vary: Origin
+Access-Control-Allow-Credentials: true
+x-correlation-id: f2aa729a-7e40-42ff-983b-381da7c8d4ff
+Content-Type: application/json; charset=utf-8
+Content-Length: 40
+ETag: W/"28-7TS5L8oNHbc4slGDfUm9L1mnwgk"
+Date: Fri, 10 Oct 2025 01:44:07 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"Invalid authentication token"}

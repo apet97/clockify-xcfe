@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS settings (
   region TEXT,
   strict_mode BOOLEAN DEFAULT FALSE,
   backfill_months INTEGER DEFAULT 4,
+  formulas JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
