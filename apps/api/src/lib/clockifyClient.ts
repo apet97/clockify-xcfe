@@ -174,11 +174,17 @@ export class ClockifyClient {
     return rateLimiter.schedule(key, async () => this.rawRequest<T>({ ...options, correlationId }, baseUrlOverride));
   }
 
-  async getTimeEntry(workspaceId: string, entryId: string, correlationId?: string): Promise<ClockifyTimeEntry> {
+  async getTimeEntry(
+    workspaceId: string,
+    entryId: string,
+    correlationId?: string,
+    authToken?: string
+  ): Promise<ClockifyTimeEntry> {
     const payload = await this.request<unknown>({
       method: 'GET',
       path: `/workspaces/${workspaceId}/time-entries/${entryId}`,
-      correlationId
+      correlationId,
+      authToken
     });
     const parsed = clockifyTimeEntrySchema.parse(payload);
     return parsed;
@@ -188,13 +194,14 @@ export class ClockifyClient {
     workspaceId: string,
     entryId: string,
     body: { customFieldValues: { customFieldId: string; value: unknown }[] },
-    options?: { correlationId?: string; ifMatch?: string }
+    options?: { correlationId?: string; ifMatch?: string; authToken?: string }
   ) {
     await this.request<unknown>({
       method: 'PATCH',
       path: `/workspaces/${workspaceId}/time-entries/${entryId}`,
       body,
       correlationId: options?.correlationId,
+      authToken: options?.authToken,
       query: undefined
     });
   }

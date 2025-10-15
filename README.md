@@ -89,6 +89,24 @@ The `runs` table now stores `workspace_id`, `event`, `corrrelation_id`, `request
 - Use `scripts/verify-env.sh` in CI to enforce required secrets.
 - Provision Postgres with the latest `infra/db.sql` schema (includes OT run metadata indexes).
 
+### Webhook Bootstrap (Serverless)
+When running on serverless (e.g., Vercel) there is no long-lived process to auto-register webhooks on “server start”. Use the on-demand bootstrap endpoint to (re)create the required Clockify webhooks for your workspace.
+
+Required environment variables:
+- `WORKSPACE_ID` — target workspace
+- `ADDON_ID` — your add-on ID from the Clockify portal
+- `WEBHOOK_PUBLIC_URL` — your public API base (e.g., `https://<project>.vercel.app`)
+- `ADDON_TOKEN` or `API_KEY` — outbound auth for Clockify API
+- `ENCRYPTION_KEY` — also used as admin secret for this endpoint
+
+Trigger registration (production):
+```bash
+curl -X POST \
+  "https://<your-vercel-domain>/api/webhooks/bootstrap" \
+  -H "X-Admin-Secret: $ENCRYPTION_KEY"
+```
+The route returns the IDs of existing/created webhooks. In development, you can also pass `Authorization: Bearer <ENCRYPTION_KEY>`.
+
 ## Troubleshooting
 | Symptom | Recommended Action |
 | --- | --- |

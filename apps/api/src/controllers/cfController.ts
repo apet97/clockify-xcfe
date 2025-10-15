@@ -4,6 +4,7 @@ import { verifyClockifyJwt } from '../lib/jwt.js';
 import { clockifyClient } from '../lib/clockifyClient.js';
 import { logger } from '../lib/logger.js';
 import { getInstallation } from '../services/installationService.js';
+import { getInstallationTokenFromMemory } from '../services/installMemory.js';
 import { CONFIG } from '../config/index.js';
 
 /**
@@ -28,8 +29,12 @@ export const getCustomFields = async (req: Request, res: Response) => {
     logger.debug({ workspaceId, addonId, backendUrl }, 'Fetching custom fields');
 
     // Fetch installation token from database
+    let installationToken: string | undefined;
     const installation = await getInstallation(addonId || CONFIG.ADDON_KEY, workspaceId);
-    const installationToken = installation?.installationToken;
+    installationToken = installation?.installationToken;
+    if (!installationToken) {
+      installationToken = getInstallationTokenFromMemory(workspaceId);
+    }
 
     if (!installationToken) {
       logger.warn({ workspaceId, addonId }, 'No installation token found for workspace');

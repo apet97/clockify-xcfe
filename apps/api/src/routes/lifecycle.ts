@@ -1,8 +1,9 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
-import { verifyClockifyJwt, type InstallationTokenPayload, type UserTokenPayload } from '../lib/clockifyJwt.js';
+import { verifyClockifyJwt, type ClockifyJwtClaims } from '../lib/jwt.js';
 import { CONFIG } from '../config/index.js';
+import { rememberInstallation, forgetInstallation } from '../services/installMemory.js';
 
 const router: Router = Router();
 
@@ -62,9 +63,9 @@ router.post('/installed', async (req: Request, res: Response) => {
     }
 
     // Verify the lifecycle token
-    let claims: InstallationTokenPayload | null = null;
+    let claims: ClockifyJwtClaims | null = null;
     try {
-      claims = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+      claims = await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
@@ -82,13 +83,19 @@ router.post('/installed', async (req: Request, res: Response) => {
       correlationId: req.correlationId
     });
 
-    // Store the installation token securely
-    // In production, store this in a secure database or secret manager
+    // Store the installation token
+    // In production, persist to DB; in dev/no-DB, keep in memory for API calls
     logger.info('Installation token received', {
       addonId: installationData.addonId,
       workspaceId: installationData.workspaceId,
       hasAuthToken: !!installationData.authToken
     });
+
+    // Cache token in-memory to enable outbound API calls without manual API keys
+    if (installationData.authToken) {
+      const backendUrl = (claims as any)?.backendUrl || installationData.apiurl;
+      rememberInstallation(installationData.workspaceId, installationData.authToken, backendUrl);
+    }
 
     // Store webhook tokens if provided
     if (installationData.webhooks) {
@@ -131,7 +138,7 @@ router.post('/status-changed', async (req: Request, res: Response) => {
     }
 
     try {
-      verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+      await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'status-changed', devUnsigned: true });
@@ -185,7 +192,7 @@ router.post('/settings-updated', async (req: Request, res: Response) => {
     }
 
     try {
-      verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+      await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'settings-updated', devUnsigned: true });
@@ -238,9 +245,9 @@ router.post('/updated', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
-    let claims: InstallationTokenPayload | null = null;
+    let claims: ClockifyJwtClaims | null = null;
     try {
-      claims = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+      claims = await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'updated', devUnsigned: true });
@@ -286,7 +293,7 @@ router.post('/uninstalled', async (req: Request, res: Response) => {
     }
 
     try {
-      verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+      await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'uninstalled', devUnsigned: true });
@@ -313,6 +320,8 @@ router.post('/uninstalled', async (req: Request, res: Response) => {
     // - Remove webhook subscriptions
     // - Archive audit logs
 
+    // Remove cached token
+    forgetInstallation(deletedData.workspaceId);
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Uninstalled lifecycle error', { error, correlationId: req.correlationId });

@@ -10,6 +10,7 @@ import manifestRoutes from './routes/manifest.js';
 import lifecycleRoutes from './routes/lifecycle.js';
 import webhookRoutes from './routes/webhooks.js';
 import uiRoutes from './routes/ui.js';
+import bootstrapRoutes from './routes/bootstrap.js';
 import formulasRoutes from './routes/formulas.js';
 import { correlationMiddleware } from './middleware/correlation.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -125,6 +126,7 @@ export const createApp = (): express.Express => {
   app.use('/.well-known/manifest.json', manifestRoutes);
   app.use('/.well-known/clockify/manifest.json', manifestRoutes);
   app.use('/api/lifecycle', lifecycleRoutes);
+  app.use('/api', bootstrapRoutes);
   app.use('/api/webhooks', webhookRoutes);
   app.use('/ui', uiRoutes);
   

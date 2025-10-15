@@ -1,8 +1,9 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
-import { verifyClockifyJwt, type WebhookTokenPayload } from '../lib/clockifyJwt.js';
+import { verifyClockifyJwt, type ClockifyJwtClaims } from '../lib/jwt.js';
 import { CONFIG } from '../config/index.js';
+import { clockifyWebhookHandler } from '../controllers/webhookController.js';
 
 const router: Router = Router();
 
@@ -44,9 +45,9 @@ router.post('/time-entry-created', async (req: Request, res: Response) => {
     }
 
     // Verify webhook signature
-    let claims: WebhookTokenPayload | null = null;
+    let claims: ClockifyJwtClaims | null = null;
     try {
-      claims = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+      claims = await verifyClockifyJwt(signature, CONFIG.ADDON_KEY);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'time-entry-created', devUnsigned: true });
@@ -96,9 +97,9 @@ router.post('/time-entry-updated', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
-    let claims: WebhookTokenPayload | null = null;
+    let claims: ClockifyJwtClaims | null = null;
     try {
-      claims = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+      claims = await verifyClockifyJwt(signature, CONFIG.ADDON_KEY);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'time-entry-updated', devUnsigned: true });
@@ -145,9 +146,9 @@ router.post('/time-entry-deleted', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
-    let claims: WebhookTokenPayload | null = null;
+    let claims: ClockifyJwtClaims | null = null;
     try {
-      claims = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+      claims = await verifyClockifyJwt(signature, CONFIG.ADDON_KEY);
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'time-entry-deleted', devUnsigned: true });
@@ -180,6 +181,9 @@ router.post('/time-entry-deleted', async (req: Request, res: Response) => {
 router.get('/time-entry-deleted', (_req: Request, res: Response) => {
   res.status(200).json({ ok: true, route: 'time-entry-deleted' });
 });
+
+// Consolidated webhook endpoint used by auto-registrar and README
+router.post('/clockify', clockifyWebhookHandler);
 
 /**
  * Process time entry for formula evaluation

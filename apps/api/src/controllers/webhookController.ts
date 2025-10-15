@@ -7,6 +7,7 @@ import { fetchFormulaEngineInputs } from '../services/formulaService.js';
 import { FormulaEngine } from '../lib/formulaEngine.js';
 import { computeOtSummary } from '../lib/otRules.js';
 import { CONFIG } from '../config/index.js';
+import { getInstallationTokenFromMemory } from '../services/installMemory.js';
 import { clockifyTimeEntrySchema, ClockifyWebhookEvent, billableRateUpdatedSchema } from '../types/clockify.js';
 import { recordRun } from '../services/runService.js';
 import { logger } from '../lib/logger.js';
@@ -123,19 +124,27 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
     }
 
     const workspaceId = payload.workspaceId ?? CONFIG.WORKSPACE_ID;
-    if (workspaceId !== CONFIG.WORKSPACE_ID) {
-      const key = `${workspaceId}:${event}`;
-      const now = Date.now();
-      const lastLogged = workspaceMismatchLog.get(key);
-      if (!lastLogged || now - lastLogged > 60000) {
-        logger.warn({ event, workspaceId }, 'Received event for mismatched workspace');
-        workspaceMismatchLog.set(key, now);
+    if (CONFIG.WORKSPACE_ID && workspaceId !== CONFIG.WORKSPACE_ID) {
+      const tokenForWs = getInstallationTokenFromMemory(workspaceId);
+      if (!tokenForWs && !CONFIG.DEV_ALLOW_UNSIGNED) {
+        const key = `${workspaceId}:${event}`;
+        const now = Date.now();
+        const lastLogged = workspaceMismatchLog.get(key);
+        if (!lastLogged || now - lastLogged > 60000) {
+          logger.warn({ event, workspaceId }, 'Received event for mismatched workspace without token; ignoring');
+          workspaceMismatchLog.set(key, now);
+        }
+        return res.status(200).json({ ok: true, message: 'Workspace mismatch ignored' });
       }
-      return res.status(200).json({ ok: true, message: 'Workspace mismatch ignored' });
+      // If we have a token cached for this workspace (or dev unsigned), proceed.
     }
 
     const start = performance.now();
-    const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId);
+    const authToken = getInstallationTokenFromMemory(workspaceId);
+    if (!authToken && !CONFIG.API_KEY && !CONFIG.ADDON_TOKEN) {
+      return res.status(401).json({ error: 'No installation token available for workspace' });
+    }
+    const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId, authToken);
     const otSummary = await computeOtSummary({
       workspaceId,
       timeEntry: liveEntry,
@@ -182,7 +191,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
     const fingerprint = createHash('sha256').update(JSON.stringify(diff)).digest('hex');
     const fingerprintKey = buildFingerprintKey(workspaceId, liveEntry.id);
 
-    const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId);
+    const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId, authToken);
     const latestHash = hashCustomFieldValues((latest.customFieldValues ?? []).map(cf => ({ 
       customFieldId: cf.customFieldId, 
       value: cf.value ?? null 
@@ -221,7 +230,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       {
         customFieldValues: updates.map((item) => ({ customFieldId: item.customFieldId, value: item.value }))
       },
-      { correlationId }
+      { correlationId, authToken }
     );
     const duration = Math.round(performance.now() - start);
     rememberFingerprint(fingerprintKey, fingerprint);

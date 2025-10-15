@@ -69,18 +69,9 @@ export const getManifest: RequestHandler = (_req, res) => {
       { type: "DELETED", path: "/api/lifecycle/uninstalled" }
     ],
     webhooks: [
-      {
-        event: "NEW_TIME_ENTRY",
-        path: "/api/webhooks/time-entry-created"
-      },
-      {
-        event: "TIME_ENTRY_UPDATED",
-        path: "/api/webhooks/time-entry-updated"
-      },
-      {
-        event: "TIME_ENTRY_DELETED",
-        path: "/api/webhooks/time-entry-deleted"
-      }
+      { event: "NEW_TIME_ENTRY", path: "/v1/webhooks/clockify" },
+      { event: "TIME_ENTRY_UPDATED", path: "/v1/webhooks/clockify" },
+      { event: "TIME_ENTRY_DELETED", path: "/v1/webhooks/clockify" }
     ]
   };
 
