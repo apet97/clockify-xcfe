@@ -107,6 +107,15 @@ curl -X POST \
 ```
 The route returns the IDs of existing/created webhooks. In development, you can also pass `Authorization: Bearer <ENCRYPTION_KEY>`.
 
+### Vercel: One-Click Setup
+- Deploy with Vercel (clones this repo and prompts for env):
+
+  https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fapet97%2Fclockify-xcfe&project-name=clockify-xcfe&repository-name=clockify-xcfe&env=ENCRYPTION_KEY,ADDON_TOKEN,API_KEY,WORKSPACE_ID,ADDON_ID,WEBHOOK_PUBLIC_URL,ADMIN_UI_ORIGIN,CLOCKIFY_BASE_URL,CLOCKIFY_REGION,CLOCKIFY_WEBHOOK_SECRET,SKIP_DATABASE_CHECKS,VITE_API_BASE_URL&envDescription=Provide%20your%20secrets%20and%20Clockify%20IDs%3B%20leave%20API_KEY%20or%20ADDON_TOKEN%20blank%20if%20unused.&buildCommand=pnpm%20install%20%26%26%20pnpm%20run%20build
+
+- After deploy, bootstrap webhooks:
+  - `export ENCRYPTION_KEY=...`
+  - `bash scripts/bootstrap-webhooks.sh https://<your-vercel-domain>`
+
 ## Troubleshooting
 | Symptom | Recommended Action |
 | --- | --- |
