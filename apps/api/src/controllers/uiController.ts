@@ -18,6 +18,19 @@ type SettingsTabConfig = {
 };
 
 export const renderSettings: RequestHandler = async (req, res) => {
+  // Apply CSP for inline templates rendered here
+  res.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "frame-ancestors 'self' https://*.clockify.me https://developer.clockify.me"
+    ].join('; ')
+  );
   const authToken = req.query.auth_token as string;
   const config = req.params.config;
 
@@ -346,6 +359,19 @@ export const renderSettings: RequestHandler = async (req, res) => {
 };
 
 export const renderSidebar: RequestHandler = async (req, res) => {
+  // Apply CSP for inline templates rendered here
+  res.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "frame-ancestors 'self' https://*.clockify.me https://developer.clockify.me"
+    ].join('; ')
+  );
   const authToken = req.query.auth_token as string;
   
   if (!authToken) {

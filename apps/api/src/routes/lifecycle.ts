@@ -54,23 +54,19 @@ const DeletedPayloadSchema = z.object({
 router.post('/installed', async (req: Request, res: Response) => {
   try {
     const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
-    if (!token) {
-      if (CONFIG.DEV_ALLOW_UNSIGNED) {
-        // Liveness in development: acknowledge without token
-        return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
-      }
-      return res.status(401).json({ error: 'Missing lifecycle token' });
-    }
-
-    // Verify the lifecycle token
+    // In dev, allow proceeding without token to cache installation
     let claims: ClockifyJwtClaims | null = null;
-    try {
-      claims = await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
-    } catch (e) {
-      if (CONFIG.DEV_ALLOW_UNSIGNED) {
-        return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
+    if (token) {
+      try {
+        claims = await verifyClockifyJwt(token, CONFIG.ADDON_KEY, false);
+      } catch (e) {
+        if (!CONFIG.DEV_ALLOW_UNSIGNED) {
+          throw e;
+        }
+        // Continue unsigned in dev
       }
-      throw e;
+    } else if (!CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(401).json({ error: 'Missing lifecycle token' });
     }
     
     // Validate the installation payload

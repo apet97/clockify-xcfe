@@ -141,6 +141,20 @@ export const createApp = (): express.Express => {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.set('Pragma', 'no-cache');
       res.set('Expires', '0');
+      // Restrictive but compatible CSP for iframe UI in Clockify
+      // Allow loading inside Clockify domains; scripts/styles from self; images include data URIs; connect to HTTPS for API calls
+      res.set(
+        'Content-Security-Policy',
+        [
+          "default-src 'self'",
+          "script-src 'self'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data:",
+          "font-src 'self' data:",
+          "connect-src 'self' https:",
+          "frame-ancestors 'self' https://*.clockify.me https://developer.clockify.me"
+        ].join('; ')
+      );
       next();
     },
     express.static(adminUiPath)
@@ -151,6 +165,18 @@ export const createApp = (): express.Express => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
+    res.set(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self' data:",
+        "connect-src 'self' https:",
+        "frame-ancestors 'self' https://*.clockify.me https://developer.clockify.me"
+      ].join('; ')
+    );
     res.sendFile(path.join(adminUiPath, 'index.html'));
   });
 

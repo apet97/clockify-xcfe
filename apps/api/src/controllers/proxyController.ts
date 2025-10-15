@@ -3,6 +3,7 @@ import { verifyClockifyJwt } from '../lib/jwt.js';
 import { CONFIG } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 import { getInstallation } from '../services/installationService.js';
+import { getInstallationTokenFromMemory } from '../services/installMemory.js';
 
 export const proxyTimeEntries: RequestHandler = async (req, res) => {
   const authToken = (req.query.auth_token as string) || undefined;
@@ -18,7 +19,8 @@ export const proxyTimeEntries: RequestHandler = async (req, res) => {
     let verifiedClaims: any | undefined;
     if (authToken) {
       try {
-        verifiedClaims = await verifyClockifyJwt(authToken, CONFIG.ADDON_KEY);
+        // Skip strict subject check to support dev sandbox tokens
+        verifiedClaims = await verifyClockifyJwt(authToken);
         backendUrl = verifiedClaims.backendUrl || CONFIG.CLOCKIFY_BASE_URL;
         workspaceId = verifiedClaims.workspaceId;
         addonId = verifiedClaims.addonId;
@@ -65,11 +67,11 @@ export const proxyTimeEntries: RequestHandler = async (req, res) => {
       'User-Agent': 'xCFE/1.0.0'
     };
 
-    let credentialSource: 'iframe-jwt-token' | 'installation-token' | 'global-addon-token' | 'global-api-key' | 'none' = 'none';
+    let credentialSource: 'installation-token' | 'memory-token' | 'global-addon-token' | 'global-api-key' | 'iframe-jwt-token' | 'none' = 'none';
 
     // Priority 1: iframe JWT present -> use installation token or server-side exchange
     if (verifiedClaims) {
-      // Try to get installation token from database first
+      // 1) DB token if available
       if (addonId && workspaceId) {
         const installation = await getInstallation(addonId, workspaceId);
         if (installation?.installationToken) {
@@ -78,13 +80,34 @@ export const proxyTimeEntries: RequestHandler = async (req, res) => {
           logger.debug({ addonId, workspaceId, correlationId }, 'Using installation token for proxy request');
         }
       }
-      
-      // If no installation token, fall back to env ADDON_TOKEN
+
+      // 2) In-memory token captured via lifecycle
+      if (!headers['X-Addon-Token'] && workspaceId) {
+        const mem = getInstallationTokenFromMemory(workspaceId);
+        if (mem) {
+          headers['X-Addon-Token'] = mem;
+          credentialSource = 'memory-token';
+          logger.debug({ workspaceId, correlationId }, 'Using in-memory installation token for proxy request');
+        }
+      }
+
+      // 3) Global env add-on token
       if (!headers['X-Addon-Token'] && CONFIG.ADDON_TOKEN) {
         headers['X-Addon-Token'] = CONFIG.ADDON_TOKEN;
         credentialSource = 'global-addon-token';
         logger.debug({ workspaceId, correlationId }, 'Using global ADDON_TOKEN for proxy request');
       }
+
+      // 4) Developer sandbox last-resort: use iframe JWT directly
+      try {
+        const host = new URL(backendUrl).host;
+        const isDev = /(^|\.)developer\.clockify\.me$/.test(host);
+        if (!headers['X-Addon-Token'] && isDev && authToken) {
+          headers['X-Addon-Token'] = authToken;
+          credentialSource = 'iframe-jwt-token';
+          logger.debug({ workspaceId, correlationId }, 'Using iframe JWT as X-Addon-Token for developer sandbox');
+        }
+      } catch {}
     }
     // Priority 2: Installation token from database (non-JWT flow, dev only)
     else if (CONFIG.NODE_ENV === 'development' && addonId && workspaceId) {

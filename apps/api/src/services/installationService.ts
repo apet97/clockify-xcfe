@@ -1,6 +1,7 @@
 import { getDb } from '../lib/db.js';
 import { logger } from '../lib/logger.js';
 import { CONFIG } from '../config/index.js';
+import { encrypt, decrypt } from '../lib/encryption.js';
 
 export type Installation = {
   addonId: string;
@@ -39,10 +40,23 @@ export const upsertInstallation = async (data: {
         updated_at = NOW()
     `;
     
+    // Encrypt installation token at rest if provided
+    let tokenValue: string | null = null;
+    if (data.installationToken && data.installationToken.trim() !== '') {
+      try {
+        const cipher = encrypt(data.installationToken);
+        tokenValue = JSON.stringify(cipher);
+      } catch (err) {
+        // If encryption fails, avoid storing plaintext token
+        logger.error({ err }, 'Failed to encrypt installation token');
+        tokenValue = null;
+      }
+    }
+
     await client.query(query, [
       data.addonId,
       data.workspaceId,
-      data.installationToken || null,
+      tokenValue,
       data.status || 'ACTIVE',
       JSON.stringify(data.settingsJson || {})
     ]);
@@ -80,10 +94,26 @@ export const getInstallation = async (addonId: string, workspaceId: string): Pro
     }
     
     const row = result.rows[0];
+    // Attempt to decrypt token if present and stored in encrypted form
+    let installationToken: string | undefined;
+    const rawToken: unknown = row.installation_token;
+    if (typeof rawToken === 'string' && rawToken.trim() !== '') {
+      try {
+        const payload = JSON.parse(rawToken);
+        if (payload && typeof payload === 'object' && 'iv' in payload && 'authTag' in payload && 'content' in payload) {
+          installationToken = decrypt(payload as any);
+        } else {
+          installationToken = rawToken; // backward compatibility (plaintext)
+        }
+      } catch {
+        installationToken = rawToken; // backward compatibility (plaintext or non-JSON)
+      }
+    }
+
     return {
       addonId: row.addon_id,
       workspaceId: row.workspace_id,
-      installationToken: row.installation_token,
+      installationToken,
       status: row.status,
       settingsJson: row.settings_json || {},
       createdAt: row.created_at,
@@ -135,15 +165,33 @@ export const getAllInstallations = async (): Promise<Installation[]> => {
     
     const result = await client.query(query);
     
-    return result.rows.map(row => ({
-      addonId: row.addon_id,
-      workspaceId: row.workspace_id,
-      installationToken: row.installation_token,
-      status: row.status,
-      settingsJson: row.settings_json || {},
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    }));
+    return result.rows.map(row => {
+      // Attempt to decrypt token; do not log token value
+      let installationToken: string | undefined;
+      const rawToken: unknown = row.installation_token;
+      if (typeof rawToken === 'string' && rawToken.trim() !== '') {
+        try {
+          const payload = JSON.parse(rawToken);
+          if (payload && typeof payload === 'object' && 'iv' in payload && 'authTag' in payload && 'content' in payload) {
+            installationToken = decrypt(payload as any);
+          } else {
+            installationToken = rawToken;
+          }
+        } catch {
+          installationToken = rawToken;
+        }
+      }
+
+      return ({
+        addonId: row.addon_id,
+        workspaceId: row.workspace_id,
+        installationToken,
+        status: row.status,
+        settingsJson: row.settings_json || {},
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      });
+    });
   } finally {
     client.release();
   }

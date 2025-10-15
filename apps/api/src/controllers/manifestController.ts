@@ -38,40 +38,42 @@ export const getManifest: RequestHandler = (_req, res) => {
   };
 
   const manifest = {
-    schemaVersion: "1.3",
+    schemaVersion: '1.3',
     key: CONFIG.ADDON_KEY,
     name: CONFIG.ADDON_NAME,
     baseUrl: CONFIG.BASE_URL,
-    description: "Automated formula evaluation and validation for Clockify custom fields",
-    iconPath: "/assets/icon.svg",
+    description:
+      'xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries.',
+    iconPath: '/assets/icon.svg',
     minimalSubscriptionPlan: CONFIG.MIN_PLAN,
+    // Scopes aligned to schema enumeration (upper snake case)
     scopes: [
-      "TIME_ENTRY_READ",
-      "TIME_ENTRY_WRITE",
-      "USER_READ",
-      "PROJECT_READ",
-      "TASK_READ",
-      "CUSTOM_FIELDS_READ"
+      'TIME_ENTRY_READ',
+      'TIME_ENTRY_WRITE',
+      'USER_READ',
+      'PROJECT_READ',
+      'TASK_READ',
+      'CUSTOM_FIELDS_READ'
     ],
     components: [
       {
-        type: "sidebar",
-        accessLevel: "EVERYONE",
-        path: "/ui/sidebar",
-        label: "Formula Manager"
+        type: 'sidebar',
+        accessLevel: 'EVERYONE',
+        path: '/ui/sidebar',
+        label: 'Formula Manager'
       }
     ],
     settings: JSON.stringify(structuredSettings),
     lifecycle: [
-      { type: "INSTALLED", path: "/api/lifecycle/installed" },
-      { type: "STATUS_CHANGED", path: "/api/lifecycle/status-changed" },
-      { type: "SETTINGS_UPDATED", path: "/api/lifecycle/settings-updated" },
-      { type: "DELETED", path: "/api/lifecycle/uninstalled" }
+      { type: 'INSTALLED', path: '/api/lifecycle/installed' },
+      { type: 'STATUS_CHANGED', path: '/api/lifecycle/status-changed' },
+      { type: 'SETTINGS_UPDATED', path: '/api/lifecycle/settings-updated' },
+      { type: 'DELETED', path: '/api/lifecycle/uninstalled' }
     ],
     webhooks: [
-      { event: "NEW_TIME_ENTRY", path: "/v1/webhooks/clockify" },
-      { event: "TIME_ENTRY_UPDATED", path: "/v1/webhooks/clockify" },
-      { event: "TIME_ENTRY_DELETED", path: "/v1/webhooks/clockify" }
+      { event: 'NEW_TIME_ENTRY', path: '/v1/webhooks/clockify' },
+      { event: 'TIME_ENTRY_UPDATED', path: '/v1/webhooks/clockify' },
+      { event: 'TIME_ENTRY_DELETED', path: '/v1/webhooks/clockify' }
     ]
   };
 
