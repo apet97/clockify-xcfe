@@ -110,8 +110,10 @@ const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string,
 };
 
 export const verifyClockifyJwt = async (token: string, expectedSub?: string, requireBackendUrl = true): Promise<ClockifyJwtClaims> => {
+  // If dev mode allows unsigned, try to verify but fall back to decode on failure
+  const allowUnsigned = !!CONFIG.DEV_ALLOW_UNSIGNED;
   try {
-    if (CONFIG.DEV_ALLOW_UNSIGNED && !CONFIG.RSA_PUBLIC_KEY_PEM) {
+    if (allowUnsigned && !CONFIG.RSA_PUBLIC_KEY_PEM) {
       const claims = decodeClockifyClaims(token);
       validateClockifyClaims(claims, expectedSub, requireBackendUrl);
       return claims;
@@ -128,6 +130,14 @@ export const verifyClockifyJwt = async (token: string, expectedSub?: string, req
     validateClockifyClaims(claims, expectedSub, requireBackendUrl);
     return claims;
   } catch (error) {
+    if (allowUnsigned) {
+      // Best-effort decode in dev to keep flows working
+      try {
+        const claims = decodeClockifyClaims(token);
+        validateClockifyClaims(claims, expectedSub, requireBackendUrl);
+        return claims;
+      } catch {}
+    }
     throw new Error(`JWT verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };

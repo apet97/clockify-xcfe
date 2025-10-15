@@ -119,10 +119,14 @@ export const proxyTimeEntries: RequestHandler = async (req, res) => {
       });
     }
 
-    // Normalize API base to ensure single /v1
-    const apiBase = backendUrl.endsWith('/v1')
-      ? backendUrl
-      : `${backendUrl.replace(/\/$/, '')}/v1`;
+    // Normalize API base:
+    // - Developer env (developer.clockify.me) uses /api without /v1
+    // - Production env typically requires /api/v1
+    const trimmed = backendUrl.replace(/\/$/, '');
+    const isDeveloperEnv = /(^|\.)developer\.clockify\.me$/.test(new URL(trimmed).host);
+    const apiBase = isDeveloperEnv
+      ? trimmed
+      : (trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`);
     
     // Build both user-scoped and fallback URLs
     const uidCandidate = userId;
