@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 import { logger } from '../lib/logger.js';
 import { verifyClockifyJwt, type ClockifyJwtClaims } from '../lib/jwt.js';
@@ -103,6 +105,21 @@ router.post('/installed', async (req: Request, res: Response) => {
         });
       }
     }
+
+    // Persist minimal install capture for tooling (no secrets)
+    try {
+      const stateDir = path.resolve(process.cwd(), '.state');
+      fs.mkdirSync(stateDir, { recursive: true });
+      const statePath = path.join(stateDir, 'install.json');
+      const payload = {
+        addonId: installationData.addonId,
+        workspaceId: installationData.workspaceId,
+        apiurl: installationData.apiurl,
+        hasAuthToken: !!installationData.authToken,
+        installedAt: new Date().toISOString()
+      };
+      fs.writeFileSync(statePath, JSON.stringify(payload, null, 2));
+    } catch {}
 
     res.status(200).json({ success: true });
   } catch (error) {
@@ -318,6 +335,17 @@ router.post('/uninstalled', async (req: Request, res: Response) => {
 
     // Remove cached token
     forgetInstallation(deletedData.workspaceId);
+
+    // Mark local state as revoked for tooling
+    try {
+      const stateDir = path.resolve(process.cwd(), '.state');
+      const statePath = path.join(stateDir, 'install.json');
+      if (fs.existsSync(statePath)) {
+        const cur = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+        cur.revokedAt = new Date().toISOString();
+        fs.writeFileSync(statePath, JSON.stringify(cur, null, 2));
+      }
+    } catch {}
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Uninstalled lifecycle error', { error, correlationId: req.correlationId });
