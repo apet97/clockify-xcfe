@@ -69,7 +69,8 @@ const processEntriesPage = async (
   reportEntries: DetailedReportEntry[],
   dryRun: boolean,
   correlationId: string,
-  state: { lastEntryByUser: Map<string, OtReferenceEntry> }
+  state: { lastEntryByUser: Map<string, OtReferenceEntry> },
+  ctx?: { authToken?: string; baseUrlOverride?: string }
 ): Promise<{
   processed: number;
   updated: number;
@@ -94,7 +95,7 @@ const processEntriesPage = async (
     let otSummary: OtSummary | null = null;
 
     try {
-      liveEntry = await clockifyClient.getTimeEntry(workspaceId, entry.id, entryCorrelationId);
+      liveEntry = await clockifyClient.getTimeEntry(workspaceId, entry.id, entryCorrelationId, ctx?.authToken, ctx?.baseUrlOverride);
       processed++;
 
       const previousReference = state.lastEntryByUser.get(liveEntry.userId) ?? null;
@@ -123,9 +124,9 @@ const processEntriesPage = async (
         continue;
       }
 
-      if (!dryRun) {
-        let retryCount = 0;
-        const maxRetries = 3;
+        if (!dryRun) {
+          let retryCount = 0;
+          const maxRetries = 3;
 
         while (retryCount <= maxRetries) {
           try {
@@ -133,7 +134,7 @@ const processEntriesPage = async (
               workspaceId,
               liveEntry.id,
               { customFieldValues: updates.map((item) => ({ customFieldId: item.customFieldId, value: item.value })) },
-              { correlationId: entryCorrelationId }
+              { correlationId: entryCorrelationId, authToken: ctx?.authToken, baseUrlOverride: ctx?.baseUrlOverride }
             );
 
             await recordRun({
@@ -219,9 +220,12 @@ const processEntriesPage = async (
   return { processed, updated, errors, outcomes };
 };
 
-export const runBackfill = async (params: BackfillParams): Promise<BackfillResult> => {
+export const runBackfill = async (
+  params: BackfillParams,
+  ctx?: { workspaceId?: string; authToken?: string; baseUrlOverride?: string }
+): Promise<BackfillResult> => {
   const correlationId = randomUUID();
-  const workspaceId = CONFIG.WORKSPACE_ID;
+  const workspaceId = ctx?.workspaceId || CONFIG.WORKSPACE_ID;
 
   logger.info({ 
     params, 
@@ -291,7 +295,9 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
                 page,
                 pageSize
               },
-              `${correlationId}-day-${day.toISOString().split('T')[0]}-page-${page}`
+              `${correlationId}-day-${day.toISOString().split('T')[0]}-page-${page}`,
+              ctx?.authToken,
+              ctx?.baseUrlOverride
             );
             break;
           } catch (error) {
@@ -329,7 +335,8 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
           reportEntries,
           params.dryRun ?? false,
           `${correlationId}-day-${day.toISOString().split('T')[0]}-page-${page}`,
-          state
+          state,
+          { authToken: ctx?.authToken, baseUrlOverride: ctx?.baseUrlOverride }
         );
 
         dayUpdated += pageResult.updated;

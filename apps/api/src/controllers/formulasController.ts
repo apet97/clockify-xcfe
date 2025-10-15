@@ -32,8 +32,13 @@ export const recompute = async (req: Request, res: Response) => {
     // Validate required start/end date parameters from request body
     const { startDate, endDate, userId: bodyUserId } = recomputeSchema.parse(req.body);
 
-    // Build API base URL: backendUrl.replace(/\/$/, '') + '/v1'
-    const apiBaseUrl = backendUrl.replace(/\/$/, '') + '/v1';
+    // Normalize API base URL: only append /v1 if not already present
+    const normalizeApiBase = (url: string) => {
+      const trimmed = (url || '').replace(/\/$/, '');
+      if (trimmed.endsWith('/v1')) return trimmed;
+      return `${trimmed}/v1`;
+    };
+    const apiBaseUrl = normalizeApiBase(backendUrl);
 
     // Fetch time entries from Clockify API using user-scoped endpoint
     const targetUserId = bodyUserId || jwtUserId;
@@ -211,8 +216,11 @@ export const verify = async (req: Request, res: Response) => {
     }
 
     // Fetch time entry from Clockify API using installation token
-    const backendUrl = (claims.backendUrl || '').replace(/\/$/, '') + '/v1';
-    const entry = await clockifyClient.getTimeEntry(workspaceId, entryId, req.correlationId, installationToken, backendUrl);
+    const normalized = (() => {
+      const trimmed = (claims.backendUrl || '').replace(/\/$/, '');
+      return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
+    })();
+    const entry = await clockifyClient.getTimeEntry(workspaceId, entryId, req.correlationId, installationToken, normalized);
 
     // Return custom fields for verification
     res.json({

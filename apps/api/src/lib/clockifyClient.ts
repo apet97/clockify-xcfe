@@ -123,7 +123,9 @@ export class ClockifyClient {
   }
 
   private async rawRequest<T>({ method = 'GET', path, body, query, correlationId, authToken }: RequestOptions, baseUrlOverride?: string): Promise<T> {
-    const url = new URL(path + serializeQuery(query), baseUrlOverride || this.baseUrl).toString();
+    const base = (baseUrlOverride || this.baseUrl).replace(/\/$/, '/') + '';
+    const cleanPath = String(path).replace(/^\//, '');
+    const url = new URL(cleanPath + serializeQuery(query), base).toString();
     const headers = this.getHeaders(correlationId, authToken);
     const requestInit: RequestInit = {
       method,
