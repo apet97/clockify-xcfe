@@ -27,8 +27,8 @@
       }
     ]
   },
-  "iframeUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/ui/sidebar",
-  "webhookUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/v1/webhooks/clockify",
+  "iframeUrl": "https://your-vercel-domain.vercel.app/ui/sidebar",
+  "webhookUrl": "https://your-vercel-domain.vercel.app/v1/webhooks/clockify",
   "regions": ["global", "euc1", "use2", "euw2", "apse2"],
   "minimalSubscriptionPlan": "PRO",
   "features": {
