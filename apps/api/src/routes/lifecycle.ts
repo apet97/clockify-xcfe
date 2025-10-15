@@ -62,9 +62,9 @@ router.post('/installed', async (req: Request, res: Response) => {
     }
 
     // Verify the lifecycle token
-    let payload: InstallationTokenPayload | null = null;
+    let claims: InstallationTokenPayload | null = null;
     try {
-      payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+      claims = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
@@ -238,9 +238,9 @@ router.post('/updated', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
-    let payload: InstallationTokenPayload | null = null;
+    let claims: InstallationTokenPayload | null = null;
     try {
-      payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+      claims = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'updated', devUnsigned: true });
@@ -249,8 +249,8 @@ router.post('/updated', async (req: Request, res: Response) => {
     }
     
     logger.info('Add-on updated', {
-      addonId: payload.addonId,
-      workspaceId: payload.workspaceId,
+      addonId: claims.addonId,
+      workspaceId: claims.workspaceId,
       correlationId: req.correlationId
     });
 

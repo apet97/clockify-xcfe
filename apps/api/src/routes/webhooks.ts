@@ -44,9 +44,9 @@ router.post('/time-entry-created', async (req: Request, res: Response) => {
     }
 
     // Verify webhook signature
-    let payload: WebhookTokenPayload | null = null;
+    let claims: WebhookTokenPayload | null = null;
     try {
-      payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+      claims = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'time-entry-created', devUnsigned: true });
@@ -59,13 +59,13 @@ router.post('/time-entry-created', async (req: Request, res: Response) => {
     
     logger.info('Time entry created webhook received', {
       timeEntryId: timeEntry.id,
-      workspaceId: payload.workspaceId,
+      workspaceId: claims.workspaceId,
       userId: timeEntry.userId,
       correlationId: req.correlationId
     });
 
     // Process the time entry for formula evaluation
-    await processTimeEntryForFormulas(timeEntry, payload.workspaceId);
+    await processTimeEntryForFormulas(timeEntry, claims.workspaceId);
 
     res.status(200).json({ success: true });
   } catch (error) {
@@ -96,9 +96,9 @@ router.post('/time-entry-updated', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
-    let payload: WebhookTokenPayload | null = null;
+    let claims: WebhookTokenPayload | null = null;
     try {
-      payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+      claims = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'time-entry-updated', devUnsigned: true });
@@ -109,13 +109,13 @@ router.post('/time-entry-updated', async (req: Request, res: Response) => {
     
     logger.info('Time entry updated webhook received', {
       timeEntryId: timeEntry.id,
-      workspaceId: payload.workspaceId,
+      workspaceId: claims.workspaceId,
       userId: timeEntry.userId,
       correlationId: req.correlationId
     });
 
     // Process the updated time entry
-    await processTimeEntryForFormulas(timeEntry, payload.workspaceId);
+    await processTimeEntryForFormulas(timeEntry, claims.workspaceId);
 
     res.status(200).json({ success: true });
   } catch (error) {
@@ -145,9 +145,9 @@ router.post('/time-entry-deleted', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
-    let payload: WebhookTokenPayload | null = null;
+    let claims: WebhookTokenPayload | null = null;
     try {
-      payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+      claims = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
     } catch (e) {
       if (CONFIG.DEV_ALLOW_UNSIGNED) {
         return res.status(200).json({ ok: true, route: 'time-entry-deleted', devUnsigned: true });
@@ -160,12 +160,12 @@ router.post('/time-entry-deleted', async (req: Request, res: Response) => {
     
     logger.info('Time entry deleted webhook received', {
       timeEntryId,
-      workspaceId: payload.workspaceId,
+      workspaceId: claims.workspaceId,
       correlationId: req.correlationId
     });
 
     // Clean up any formula evaluation data for this entry
-    await cleanupTimeEntryData(timeEntryId, payload.workspaceId);
+    await cleanupTimeEntryData(timeEntryId, claims.workspaceId);
 
     res.status(200).json({ success: true });
   } catch (error) {
