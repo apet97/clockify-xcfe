@@ -23,15 +23,17 @@ The dev script automatically skips Postgres bootstrap when the Docker daemon is 
 | `WORKSPACE_ID` | Target Clockify workspace for formulas, webhooks, and audits. |
 | `CLOCKIFY_BASE_URL` | Base REST endpoint, defaults to `https://api.clockify.me/api/v1`. |
 | `CLOCKIFY_REGION` | Optional region code `euc1`, `use2`, `euw2`, or `apse2` to route REST + Reports APIs. |
-| `ADDON_TOKEN` / `API_KEY` | Exactly one credential used for all outbound Clockify requests. |
+| `ADDON_TOKEN` / `API_KEY` | Optional fallback credentials. In production, the add-on receives a per-workspace Add-on Token and backendUrl at installation and caches them automatically. |
 | `ADDON_ID` | Add-on identifier used when reconciling webhooks. |
 | `WEBHOOK_PUBLIC_URL` | Public URL pointing to this API (used by auto-registrar). |
 | `CLOCKIFY_WEBHOOK_SECRET` | HMAC secret for verifying incoming webhooks. |
 | `ENCRYPTION_KEY` | 32+ character secret used for AES-GCM at-rest storage and JWT signing. |
+| `ADMIN_SECRET` | Admin secret for protected internal endpoints (defaults to `ENCRYPTION_KEY` if unset). |
 | `DATABASE_URL` | Postgres connection string (e.g. `postgres://postgres:postgres@localhost:5432/xcfe`). |
 | `ADMIN_UI_ORIGIN` | Comma-separated list of origins allowed to call the API (iframe host). |
 | `WEBHOOK_RECONCILE` | `true` to delete unknown webhooks during startup. |
 | `DEV_ALLOW_UNSIGNED` | Development escape hatch to bypass webhook signatures & lifecycle JWTs. |
+| `SKIP_DATABASE_CHECKS` | `true` to run without a database (lifecycle + formula storage skipped). |
 | `RATE_LIMIT_RPS` | Global Clockify RPS ceiling (default 50). |
 | `RATE_LIMIT_MAX_BACKOFF_MS` | Cap for exponential backoff retries (default 5000). |
 
@@ -92,12 +94,13 @@ The `runs` table now stores `workspace_id`, `event`, `corrrelation_id`, `request
 ### Webhook Bootstrap (Serverless)
 When running on serverless (e.g., Vercel) there is no long-lived process to auto-register webhooks on “server start”. Use the on-demand bootstrap endpoint to (re)create the required Clockify webhooks for your workspace.
 
-Required environment variables:
+Required environment variables (production):
 - `WORKSPACE_ID` — target workspace
 - `ADDON_ID` — your add-on ID from the Clockify portal
 - `WEBHOOK_PUBLIC_URL` — your public API base (e.g., `https://<project>.vercel.app`)
-- `ADDON_TOKEN` or `API_KEY` — outbound auth for Clockify API
-- `ENCRYPTION_KEY` — also used as admin secret for this endpoint
+- `ENCRYPTION_KEY` — also used as admin secret for this endpoint (or set `ADMIN_SECRET`)
+
+Note: In production, Clockify sends an Installation token which the service caches per workspace. You do not need to set `ADDON_TOKEN`.
 
 Trigger registration (production):
 ```bash
