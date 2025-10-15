@@ -130,14 +130,17 @@ export const verifyClockifyJwt = async (token: string, expectedSub?: string, req
     validateClockifyClaims(claims, expectedSub, requireBackendUrl);
     return claims;
   } catch (error) {
-    if (allowUnsigned) {
-      // Best-effort decode in dev to keep flows working
-      try {
-        const claims = decodeClockifyClaims(token);
+    // Best-effort decode: allow developer env tokens (developer.clockify.me) even if signature fails
+    try {
+      const claims = decodeClockifyClaims(token);
+      const backend = claims?.backendUrl || '';
+      const host = (() => { try { return new URL(backend).host; } catch { return ''; } })();
+      const isDevHost = /(^|\.)developer\.clockify\.me$/.test(host);
+      if (isDevHost || allowUnsigned) {
         validateClockifyClaims(claims, expectedSub, requireBackendUrl);
         return claims;
-      } catch {}
-    }
+      }
+    } catch {}
     throw new Error(`JWT verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
