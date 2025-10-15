@@ -21,6 +21,11 @@ if (process.env.BASE_URL?.trim() === '') {
   delete process.env.BASE_URL;
 }
 
+// Allow alias CLOCKIFY_PUBLIC_KEY_PEM for RSA_PUBLIC_KEY_PEM
+if (!process.env.RSA_PUBLIC_KEY_PEM && process.env.CLOCKIFY_PUBLIC_KEY_PEM) {
+  process.env.RSA_PUBLIC_KEY_PEM = process.env.CLOCKIFY_PUBLIC_KEY_PEM;
+}
+
 const encryptionKeySchema = z
   .string()
   .min(32, 'ENCRYPTION_KEY must be at least 32 characters')

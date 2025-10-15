@@ -96,6 +96,10 @@ const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string,
     throw new Error('Invalid JWT type, expected "addon"');
   }
 
+  if (claims.iss !== 'clockify') {
+    throw new Error(`Invalid JWT issuer, expected "clockify", got "${claims.iss || ''}"`);
+  }
+
   if (expectedSub && claims.sub !== expectedSub) {
     throw new Error(`Invalid JWT subject, expected "${expectedSub}", got "${claims.sub}"`);
   }

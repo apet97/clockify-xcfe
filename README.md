@@ -27,6 +27,7 @@ The dev script automatically skips Postgres bootstrap when the Docker daemon is 
 | `ADDON_ID` | Add-on identifier used when reconciling webhooks. |
 | `WEBHOOK_PUBLIC_URL` | Public URL pointing to this API (used by auto-registrar). |
 | `CLOCKIFY_WEBHOOK_SECRET` | HMAC secret for verifying incoming webhooks. |
+| `RSA_PUBLIC_KEY_PEM` | Clockify RSA public key (alias supported: `CLOCKIFY_PUBLIC_KEY_PEM`). Used to verify lifecycle/webhook JWTs. |
 | `ENCRYPTION_KEY` | 32+ character secret used for AES-GCM at-rest storage and JWT signing. |
 | `ADMIN_SECRET` | Admin secret for protected internal endpoints (defaults to `ENCRYPTION_KEY` if unset). |
 | `DATABASE_URL` | Postgres connection string (e.g. `postgres://postgres:postgres@localhost:5432/xcfe`). |
@@ -118,6 +119,17 @@ The route returns the IDs of existing/created webhooks. In development, you can 
 - After deploy, bootstrap webhooks:
   - `export ENCRYPTION_KEY=...`
   - `bash scripts/bootstrap-webhooks.sh https://<your-vercel-domain>`
+
+### Vercel Env + PEM (Clockify public key)
+Use the exact PEM from the Clockify portal or docs.
+
+1) Save PEM to a file `public.pem` (no edits)
+2) Add in all environments using the alias accepted by the app:
+   - `vercel env add CLOCKIFY_PUBLIC_KEY_PEM production < public.pem`
+   - `vercel env add CLOCKIFY_PUBLIC_KEY_PEM preview < public.pem`
+   - `vercel env add CLOCKIFY_PUBLIC_KEY_PEM development < public.pem`
+3) The app maps `CLOCKIFY_PUBLIC_KEY_PEM` → `RSA_PUBLIC_KEY_PEM` automatically.
+4) See `docs/VERCEL_ENV_AND_PEM_CHECK.md` for a full checklist and a sanity check.
 
 ## Troubleshooting
 | Symptom | Recommended Action |
