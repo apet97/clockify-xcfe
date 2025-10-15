@@ -1,0 +1,26 @@
+# Example recompute request with valid JWT
+
+POST /v1/formulas/recompute?auth_token=<valid-jwt-token>
+Content-Type: application/json
+
+{
+  "startDate": "2025-10-09T00:00:00Z",
+  "endDate": "2025-10-10T00:00:00Z"
+}
+
+# Expected response (200 OK):
+{
+  "evaluated": 15,
+  "updated": 12,
+  "workspaceId": "ws-test",
+  "userId": "user-test",
+  "dateRange": {
+    "startDate": "2025-10-09T00:00:00Z",
+    "endDate": "2025-10-10T00:00:00Z"
+  }
+}
+
+# Error responses:
+# 400: Invalid request parameters (missing/invalid startDate or endDate)
+# 401: Invalid or missing authentication token
+# 500: Internal server error during formula recompute

@@ -1,0 +1,9 @@
+
+> clockify-xcfe@0.1.0 dev:addon /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe
+> node simple-addon.mjs
+
+🚀 xCFE Addon Server running on http://localhost:8080
+📋 Manifest URL: https://engagement-toronto-gdp-nails.trycloudflare.com/manifest.json
+❤️ Health Check: https://engagement-toronto-gdp-nails.trycloudflare.com/v1/sites/health
+Ready for Clockify Developer Portal! 🎯
+ ELIFECYCLE  Command failed.

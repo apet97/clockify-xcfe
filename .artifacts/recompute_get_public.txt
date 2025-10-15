@@ -1,0 +1,12 @@
+HTTP/2 405 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 16:47:22 GMT
+etag: W/"49-lI/exrK/F48KRwXEg0zNJPfCEH4"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: cccf0040-af1f-4cf9-ab71-069493898fdc
+x-powered-by: Express
+content-length: 73
+
+{"error":"Method Not Allowed","message":"Use POST to recompute formulas"}

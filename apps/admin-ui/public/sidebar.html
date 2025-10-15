@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula Manager - Clockify Add-on</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .clockify-sidebar {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            background: #fff;
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .workspace-id {
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 1rem;
+        }
+
+        .quick-actions {
+            margin-bottom: 1.5rem;
+        }
+
+        .quick-actions button {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .formula-stats {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .formula-stats h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .recent-activity {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .recent-activity h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .no-activity {
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .sidebar-footer {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .btn-link:hover {
+            color: #0056b3;
+        }
+
+        .theme-info {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
+        .clockify-sidebar-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .clockify-sidebar-error {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .clockify-sidebar-error h2 {
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+
+        .clockify-sidebar-error button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .clockify-sidebar-error button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="clockify-sidebar-loading">
+            <div class="loading-spinner"></div>
+            <p>Loading Formula Manager...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Get auth token and user ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const authToken = urlParams.get('auth_token');
+        const userId = urlParams.get('userId');
+
+        if (!authToken) {
+            document.getElementById('app').innerHTML = `
+                <div class="clockify-sidebar-error">
+                    <h2>Authentication Error</h2>
+                    <p>Missing authentication token</p>
+                </div>
+            `;
+        } else {
+            // Initialize the sidebar component
+            initializeSidebar(authToken, userId);
+        }
+
+        function initializeSidebar(authToken, userId) {
+            const app = document.getElementById('app');
+            
+            try {
+                // Decode JWT payload to get context
+                const payload = decodeJwtPayload(authToken);
+                if (!payload) {
+                    throw new Error('Invalid JWT token');
+                }
+
+                // Render the sidebar
+                app.innerHTML = renderSidebar(payload, authToken, userId);
+
+                // Add event listeners
+                setupEventListeners(authToken, payload);
+
+                console.log('Clockify sidebar initialized', {
+                    workspaceId: payload.workspaceId,
+                    userId: payload.user,
+                    language: payload.language,
+                    theme: payload.theme
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize sidebar', error);
+                app.innerHTML = `
+                    <div class="clockify-sidebar-error">
+                        <h2>Error</h2>
+                        <p>${error.message}</p>
+                        <button onclick="location.reload()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function decodeJwtPayload(token) {
+            try {
+                const parts = token.split('.');
+                if (parts.length !== 3) {
+                    return null;
+                }
+                const payload = JSON.parse(atob(parts[1]));
+                return payload;
+            } catch (error) {
+                console.warn('Failed to decode JWT payload', error);
+                return null;
+            }
+        }
+
+        function renderSidebar(payload, authToken, userId) {
+            return `
+                <div class="clockify-sidebar">
+                    <header class="sidebar-header">
+                        <h1>Formula Manager</h1>
+                        <div class="user-info">
+                            <span>Workspace: ${payload.workspaceId}</span>
+                            <span class="workspace-id">User: ${payload.user}</span>
+                        </div>
+                    </header>
+
+                    <main class="sidebar-content">
+                        <div class="quick-actions">
+                            <button onclick="navigateToTracker()" class="btn-primary">
+                                Go to Tracker
+                            </button>
+                            <button onclick="showToast('info', 'Formula Manager loaded!')" class="btn-secondary">
+                                Test Toast
+                            </button>
+                        </div>
+
+                        <div class="formula-stats">
+                            <h3>Formula Statistics</h3>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-label">Active Formulas</span>
+                                    <span class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Evaluations Today</span>
+                                    <span class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Success Rate</span>
+                                    <span class="stat-value">100%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="recent-activity">
+                            <h3>Recent Activity</h3>
+                            <div class="activity-list">
+                                <p class="no-activity">No recent activity</p>
+                            </div>
+                        </div>
+                    </main>
+
+                    <footer class="sidebar-footer">
+                        <button onclick="requestTokenRefresh()" class="btn-link">
+                            Refresh Token
+                        </button>
+                        <div class="theme-info">
+                            Theme: ${payload.theme || 'DEFAULT'}
+                        </div>
+                    </footer>
+                </div>
+            `;
+        }
+
+        function setupEventListeners(authToken, payload) {
+            // Set up any additional event listeners here
+        }
+
+        // Window message functions
+        function requestTokenRefresh() {
+            window.parent?.postMessage({
+                type: 'refreshAddonToken'
+            }, '*');
+        }
+
+        function showToast(type, message) {
+            window.parent?.postMessage({
+                type: 'toastrPop',
+                payload: { type, message }
+            }, '*');
+        }
+
+        function navigateToTracker() {
+            window.parent?.postMessage({
+                type: 'navigate',
+                payload: { type: 'tracker' }
+            }, '*');
+        }
+
+        // Listen for messages from Clockify
+        window.addEventListener('message', (event) => {
+            console.log('Received message from Clockify:', event.data);
+            
+            // Handle different message types
+            switch (event.data.type) {
+                case 'URL_CHANGED':
+                    console.log('URL changed:', event.data.body);
+                    break;
+                case 'TIME_ENTRY_STARTED':
+                    console.log('Time entry started');
+                    break;
+                case 'TIME_ENTRY_STOPPED':
+                    console.log('Time entry stopped');
+                    break;
+                // Add more event handlers as needed
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "eventType": "TIME_ENTRY_UPDATED",
+  "workspaceId": "workspace-123",
+  "currentUser": {
+    "id": "user-456",
+    "email": "user@example.com",
+    "name": "John Doe"
+  },
+  "entity": {
+    "id": "entry-789",
+    "description": "Sample time entry",
+    "billable": true,
+    "timeInterval": {
+      "start": "2024-01-15T09:00:00Z",
+      "end": "2024-01-15T17:00:00Z",
+      "duration": "PT8H"
+    },
+    "projectId": "project-abc",
+    "taskId": "task-def",
+    "userId": "user-456",
+    "customFieldValues": [
+      {
+        "customFieldId": "amount-field",
+        "value": "100"
+      },
+      {
+        "customFieldId": "category-field", 
+        "value": "Development"
+      }
+    ]
+  }
+}

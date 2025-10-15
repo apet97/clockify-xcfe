@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.3",
+  "name": "xCustom Field Expander",
+  "slug": "xcfe",
+  "version": "1.0.0",
+  "icon": "https://assets.xcfe.example.com/icon.png",
+  "summary": "Automated formula evaluation and validation for Clockify custom fields",
+  "description": "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
+  "scopes": [
+    "timeEntries:read",
+    "timeEntries:write", 
+    "users:read",
+    "projects:read",
+    "tasks:read",
+    "customFields:read",
+    "webhooks:manage"
+  ],
+  "authentication": {
+    "strategies": [
+      {
+        "type": "addon_token",
+        "header": "X-Addon-Token"
+      },
+      {
+        "type": "api_key", 
+        "header": "X-Api-Key"
+      }
+    ]
+  },
+  "iframeUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/ui/sidebar",
+  "webhookUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/v1/webhooks/clockify",
+  "regions": ["global", "euc1", "use2", "euw2", "apse2"],
+  "features": {
+    "backfill": {
+      "supportsManual": true,
+      "supportsAutomated": false,
+      "maxMonths": 6
+    },
+    "realtime": {
+      "supportsCreate": true,
+      "supportsUpdate": true,
+      "supportsDelete": false
+    },
+    "validation": {
+      "dropdowns": true,
+      "numericRanges": true,
+      "customRules": true
+    }
+  },
+  "support": {
+    "email": "support@example.com",
+    "documentation": "https://docs.xcfe.example.com",
+    "slaHours": 24
+  }
+}

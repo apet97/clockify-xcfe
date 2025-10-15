@@ -1,0 +1,98 @@
+# Inline Admin Panel Implementation Summary
+
+## Created Files
+
+### 1. apps/api/src/controllers/meController.ts
+- Purpose: Returns current user info (isAdmin, workspaceId, userId) from iframe JWT
+- Endpoint: GET /v1/me?auth_token=...
+- Returns: {"isAdmin": true, "workspaceId": "...", "userId": "..."}
+- Authentication: Requires valid iframe JWT
+
+### 2. apps/api/src/controllers/cfController.ts
+- Purpose: Fetches and returns custom fields list from Clockify API
+- Endpoint: GET /v1/cf/fields?auth_token=...
+- Returns: [{"id": "...", "name": "...", "type": "..."}]
+- Authentication: Requires valid iframe JWT
+
+### 3. apps/api/src/routes/me.ts
+- Routes GET / to meController.getMe
+- Mounted at /v1/me in main router
+
+### 4. apps/api/src/routes/cf.ts
+- Routes GET /fields to cfController.getCustomFields
+- Mounted at /v1/cf in main router
+
+## Modified Files
+
+### 1. apps/api/src/routes/index.ts
+- Added: import meRoutes from './me.js'
+- Added: import cfRoutes from './cf.js'
+- Added: router.use('/me', meRoutes)
+- Added: router.use('/cf', cfRoutes)
+
+### 2. apps/api/src/lib/clockifyClient.ts
+- Added method: async getCustomFields(workspaceId, correlationId)
+- Returns: Array<{id: string, name: string, type?: string}>
+
+### 3. apps/api/src/controllers/settingsController.ts
+- Added: formulaSchema = z.object({targetId: z.string().min(1), expr: z.string().min(1)})
+- Modified: settingsSchema now includes "formulas: z.array(formulaSchema).optional()"
+- Modified: updateSettings() now validates with Zod and returns 400 on invalid payload
+
+### 4. apps/api/src/controllers/uiController.ts (MAJOR CHANGES)
+#### Added CSS (lines ~589-708):
+- .admin-panel, .admin-header, .admin-body
+- .formula-row for CF selector + expression input
+- .form-group, .form-label, .form-input, .form-select
+- .btn-small, .btn-add, .date-inputs
+- Mobile responsive styles
+
+#### Added HTML (lines ~751-785):
+- Collapsible admin panel with header "⚙️ Admin: Formulas"
+- Formula configuration section with dynamic list
+- "+ Add Formula" and "💾 Save Formulas" buttons
+- Date range picker with "▶️ Evaluate Now" button
+
+#### Added JavaScript Functions (lines ~925-1121):
+- checkAdmin(): Fetches /v1/me to check isAdmin status
+- initAdminPanel(): Loads custom fields and formulas
+- loadCustomFields(): Fetches from /v1/cf/fields
+- loadFormulas(): Fetches from /v1/settings
+- renderFormulaList(): Dynamically renders formula rows
+- addFormulaRow(): Adds new empty formula
+- removeFormulaRow(idx): Removes formula at index
+- saveFormulas(): Collects and POSTs to /v1/settings
+- evaluateNow(): POSTs to /v1/formulas/recompute with date range
+- toggleAdminPanel(): Collapses/expands admin body
+- setDefaultDateRange(): Sets default to last 24 hours
+- Modified DOMContentLoaded to call checkAdmin()
+
+### 5. TypeScript Type Fixes (lines 4 in each file):
+- apps/api/src/routes/cf.ts: const router: Router = Router()
+- apps/api/src/routes/debug.ts: const router: Router = Router()
+- apps/api/src/routes/me.ts: const router: Router = Router()
+
+## API Endpoint Summary
+
+| Endpoint | Method | Auth Required | Purpose |
+|----------|--------|---------------|---------|
+| /v1/me | GET | iframe JWT | Get current user + isAdmin status |
+| /v1/cf/fields | GET | iframe JWT | List custom fields for workspace |
+| /v1/settings | GET | No | Get workspace settings (includes formulas) |
+| /v1/settings | POST | iframe JWT | Save workspace settings (with Zod validation) |
+| /v1/formulas/recompute | POST | iframe JWT | Evaluate formulas for date range |
+
+## Key Implementation Decisions
+
+1. **All admin functionality embedded in sidebar HTML** - No separate React app needed
+2. **Admin status from JWT validation** - All authenticated users are admins for now
+3. **Formulas stored in settings** - `{formulas: [{targetId, expr}]}`
+4. **Vanilla JavaScript with string concatenation** - Dynamic rendering without frameworks
+5. **Auth token preserved via query parameter** - All fetch calls include ?auth_token=...
+6. **HTML5 datetime-local inputs** - Native date picker for evaluate date range
+7. **Zod validation on /v1/settings** - Returns 400 with error details on invalid payload
+
+## Tests Status
+✅ All 71 tests passing (70 API + 1 UI)
+✅ Build successful (apps/api + apps/admin-ui)
+✅ TypeScript strict mode compliant

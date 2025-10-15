@@ -1,0 +1,94 @@
+# File Changes Summary
+
+## Modified Files:
+
+### 1. apps/api/src/app.ts (lines 96-114)
+
+BEFORE:
+```typescript
+  // Serve static admin-ui with no-cache headers
+  const adminUiPath = path.resolve(__dirname, '../../admin-ui/dist');
+  app.use('/admin',
+    (req, res, next) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      next();
+    },
+    express.static(adminUiPath)
+  );
+
+  // SPA fallback for admin routes
+  app.get('/admin/*', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(adminUiPath, 'index.html'));
+  });
+```
+
+AFTER:
+```typescript
+  // Serve static admin-ui with no-cache headers at /ui
+  const adminUiPath = path.resolve(__dirname, '../../admin-ui/dist');
+  app.use('/ui',
+    (req, res, next) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      next();
+    },
+    express.static(adminUiPath)
+  );
+
+  // SPA fallback for /ui routes (after static files and uiRoutes)
+  app.get('/ui/*', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(adminUiPath, 'index.html'));
+  });
+```
+
+CHANGE: Updated static hosting from /admin to /ui to match requirement for /ui/formulas route
+
+## Pre-existing Files (No Changes Required):
+
+### apps/admin-ui/src/version.ts
+- Already exports BUILD object with commit and builtAt
+
+### apps/admin-ui/src/utils/buildLink.ts  
+- Already preserves query parameters
+
+### apps/admin-ui/src/App.tsx
+- Already has version banner: v {BUILD.commit} @ {BUILD.builtAt}
+- Already has Formulas navigation
+
+### apps/admin-ui/src/pages/FormulasPage.tsx
+- Already has "Evaluate now" button posting to /v1/formulas/recompute
+
+### apps/api/src/routes/formulas.ts
+- Already has POST /recompute route
+
+### apps/api/src/controllers/formulasController.ts
+- Already implements recompute with JWT validation
+- Already uses credential cascade
+- Already returns {evaluated, updated}
+
+## Build Commands Used:
+
+```bash
+# Build admin UI with version metadata
+VITE_GIT_COMMIT=95c154e \
+VITE_BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+pnpm run build
+```
+
+## Test Commands Used:
+
+```bash
+# Run all tests
+pnpm -r test
+
+# Result: 71 tests passing (1 admin-ui + 70 api)
+```

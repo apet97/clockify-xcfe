@@ -1,0 +1,4 @@
+
+> @xcfe/api@0.1.0 typecheck /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/apps/api
+> tsc --noEmit
+

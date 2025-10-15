@@ -1,0 +1,12 @@
+HTTP/2 200 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 21:09:07 GMT
+etag: W/"4df-K4bI26MGtjvaPZ63T5QTJf/VWGc"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: c8d03b7f-605b-4289-89ad-7b679b4d08af
+x-powered-by: Express
+content-length: 1247
+
+{"key":"xcfe.example","name":"xCustom Field Expander","baseUrl":"https://9e5a48f11537.ngrok-free.app","description":"xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.","minimalSubscriptionPlan":"PRO","scopes":["TIME_ENTRY_READ","TIME_ENTRY_WRITE","USER_READ","PROJECT_READ","TASK_READ","CUSTOM_FIELDS_READ","WORKSPACE_READ"],"components":[{"type":"sidebar","accessLevel":"EVERYONE","path":"/ui/sidebar","label":"xCFE"}],"settings":"{\"tabs\":[{\"id\":\"general\",\"name\":\"General Settings\",\"description\":\"Configure general xCFE behavior\",\"fields\":[{\"key\":\"enableAutoFormulas\",\"type\":\"TXT\",\"label\":\"Enable Auto Formulas\",\"description\":\"Automatically evaluate formulas on time entry changes\",\"required\":false,\"defaultValue\":\"true\"}]}]}","lifecycle":[{"type":"INSTALLED","path":"/lifecycle/installed"},{"type":"STATUS_CHANGED","path":"/lifecycle/status"},{"type":"SETTINGS_UPDATED","path":"/lifecycle/settings"},{"type":"DELETED","path":"/lifecycle/deleted"}],"webhooks":[]}

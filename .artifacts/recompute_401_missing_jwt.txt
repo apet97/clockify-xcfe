@@ -1,0 +1,12 @@
+HTTP/2 401 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 10 Oct 2025 16:57:05 GMT
+etag: W/"4f-v/lRdFWBRTKiT3I1Fha+J9mBrp0"
+ngrok-agent-ips: 178.221.235.31
+vary: Origin
+x-correlation-id: 862869b7-4915-4f58-bd1f-04a54bac9769
+x-powered-by: Express
+content-length: 79
+
+{"error":"invalid_iframe_token","message":"Missing auth_token query parameter"}

@@ -1,0 +1,93 @@
+
+> clockify-xcfe@0.1.0 test /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe
+> pnpm --filter @xcfe/api test && pnpm --filter @xcfe/admin-ui test
+
+
+> @xcfe/api@0.1.0 test /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/apps/api
+> cd ../.. && npx vitest run --config vitest.config.ts
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v1.6.1 /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe
+
+ ✓ tests/formulas.spec.ts  (5 tests) 9ms
+ ✓ tests/formulaEngineSecurity.spec.ts  (10 tests) 16ms
+{"level":"debug","time":"2025-10-11T03:17:40.669Z","pid":42546,"workspaceId":"ws-1","msg":"Returning default settings (database skipped)"}
+{"level":"debug","time":"2025-10-11T03:17:40.672Z","pid":42546,"workspaceId":"ws-1","msg":"No settings found, returning defaults"}
+{"level":"error","time":"2025-10-11T03:17:40.672Z","pid":42546,"err":{"type":"Error","message":"DB connection failed","stack":"Error: DB connection failed\n    at /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/tests/settings.spec.ts:122:35\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:135:14\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:60:26\n    at runTest (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:781:17)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runFiles (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:958:5)\n    at startTests (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:967:3)\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.19_jsdom@24.1.3/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7"},"workspaceId":"ws-1","msg":"Failed to fetch workspace settings"}
+{"level":"debug","time":"2025-10-11T03:17:40.680Z","pid":42546,"workspaceId":"ws-1","patch":{"strict_mode":true,"reference_months":6},"msg":"Settings update skipped (database disabled)"}
+{"level":"info","time":"2025-10-11T03:17:40.681Z","pid":42546,"workspaceId":"ws-1","updates":{"strict_mode":true,"reference_months":8,"region":"euw2"},"msg":"Workspace settings updated"}
+{"level":"info","time":"2025-10-11T03:17:40.682Z","pid":42546,"workspaceId":"ws-1","updates":{"strict_mode":true},"msg":"Workspace settings updated"}
+{"level":"error","time":"2025-10-11T03:17:40.684Z","pid":42546,"err":{"type":"Error","message":"DB write failed","stack":"Error: DB write failed\n    at /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/tests/settings.spec.ts:231:35\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:135:14\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:60:26\n    at runTest (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:781:17)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runFiles (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:958:5)\n    at startTests (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:967:3)\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.19_jsdom@24.1.3/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7"},"workspaceId":"ws-1","patch":{"strict_mode":true},"msg":"Failed to update workspace settings"}
+{"level":"info","time":"2025-10-11T03:17:40.684Z","pid":42546,"workspaceId":"ws-1","updates":{"strict_mode":true,"reference_months":4,"region":"euc1"},"msg":"Workspace settings updated"}
+ ✓ tests/settings.spec.ts  (12 tests) 19ms
+ ✓ tests/otRules.spec.ts  (9 tests) 8ms
+{"level":"info","time":"2025-10-11T03:17:40.771Z","pid":42546,"env":"test","correlationId":"corr-1","entryId":"5f118c837db7a8637ffcaf36","updates":[{"customFieldId":"amount-field","fieldKey":"Amount","value":75}],"msg":"Applied custom field updates"}
+ ✓ tests/webhook.spec.ts  (2 tests) 25ms
+{"level":"info","time":"2025-10-11T03:17:40.831Z","pid":42546,"params":{"from":"2024-01-01T00:00:00Z","to":"2024-01-01T23:59:59Z","dryRun":true},"correlationId":"e47dcab8-b6bd-4916-bb32-870f1369b57c","workspaceId":"test-workspace","msg":"Starting backfill operation"}
+{"level":"info","time":"2025-10-11T03:17:40.831Z","pid":42546,"dayCount":1,"startDate":"2024-01-01T00:00:00.000Z","endDate":"2024-01-01T23:59:59.000Z","msg":"Processing backfill by daily windows"}
+{"level":"debug","time":"2025-10-11T03:17:40.831Z","pid":42546,"date":"2024-01-01","dayStart":"2024-01-01T00:00:00Z","dayEnd":"2024-01-01T23:59:59Z","msg":"Processing day window"}
+{"level":"warn","time":"2025-10-11T03:17:40.831Z","pid":42546,"retryAfterMs":1000,"attempt":1,"page":1,"date":"2024-01-01","msg":"Rate limited during reports API call, retrying"}
+{"level":"info","time":"2025-10-11T03:17:41.831Z","pid":42546,"date":"2024-01-01","scanned":1,"updated":0,"errors":0,"msg":"Completed day window"}
+{"level":"info","time":"2025-10-11T03:17:41.831Z","pid":42546,"result":{"scanned":1,"updated":0,"dryRun":true,"days":1},"correlationId":"e47dcab8-b6bd-4916-bb32-870f1369b57c","msg":"Backfill operation completed"}
+{"level":"info","time":"2025-10-11T03:17:40.837Z","pid":42546,"params":{"from":"2024-01-01T00:00:00Z","to":"2024-01-01T23:59:59Z","dryRun":false},"correlationId":"86ffaf44-379f-4db0-8781-dcd3f7b45b3f","workspaceId":"test-workspace","msg":"Starting backfill operation"}
+{"level":"info","time":"2025-10-11T03:17:40.837Z","pid":42546,"dayCount":1,"startDate":"2024-01-01T00:00:00.000Z","endDate":"2024-01-01T23:59:59.000Z","msg":"Processing backfill by daily windows"}
+{"level":"debug","time":"2025-10-11T03:17:40.837Z","pid":42546,"date":"2024-01-01","dayStart":"2024-01-01T00:00:00Z","dayEnd":"2024-01-01T23:59:59Z","msg":"Processing day window"}
+{"level":"warn","time":"2025-10-11T03:17:40.837Z","pid":42546,"entryId":"entry-1","retryAfterMs":1000,"attempt":1,"msg":"Rate limited during backfill patch, retrying"}
+ ✓ tests/proxyController.spec.ts  (15 tests) 21ms
+{"level":"info","time":"2025-10-11T03:17:41.837Z","pid":42546,"date":"2024-01-01","scanned":1,"updated":1,"errors":0,"msg":"Completed day window"}
+{"level":"info","time":"2025-10-11T03:17:41.837Z","pid":42546,"result":{"scanned":1,"updated":1,"dryRun":false,"days":1},"correlationId":"86ffaf44-379f-4db0-8781-dcd3f7b45b3f","msg":"Backfill operation completed"}
+{"level":"info","time":"2025-10-11T03:17:40.858Z","pid":42546,"params":{"from":"2024-01-01T00:00:00Z","to":"2024-01-01T23:59:59Z","dryRun":true},"correlationId":"b4456c5b-0369-488c-8d10-66202a70de1b","workspaceId":"test-workspace","msg":"Starting backfill operation"}
+{"level":"info","time":"2025-10-11T03:17:40.858Z","pid":42546,"dayCount":1,"startDate":"2024-01-01T00:00:00.000Z","endDate":"2024-01-01T23:59:59.000Z","msg":"Processing backfill by daily windows"}
+{"level":"debug","time":"2025-10-11T03:17:40.858Z","pid":42546,"date":"2024-01-01","dayStart":"2024-01-01T00:00:00Z","dayEnd":"2024-01-01T23:59:59Z","msg":"Processing day window"}
+{"level":"info","time":"2025-10-11T03:17:40.860Z","pid":42546,"date":"2024-01-01","scanned":250,"updated":0,"errors":0,"msg":"Completed day window"}
+{"level":"info","time":"2025-10-11T03:17:40.860Z","pid":42546,"result":{"scanned":250,"updated":0,"dryRun":true,"days":1},"correlationId":"b4456c5b-0369-488c-8d10-66202a70de1b","msg":"Backfill operation completed"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"params":{"from":"2024-01-01T00:00:00Z","to":"2024-01-03T23:59:59Z","dryRun":true},"correlationId":"7e867c36-6f21-4589-9d29-462f420f3d9a","workspaceId":"test-workspace","msg":"Starting backfill operation"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"dayCount":3,"startDate":"2024-01-01T00:00:00.000Z","endDate":"2024-01-03T23:59:59.000Z","msg":"Processing backfill by daily windows"}
+{"level":"debug","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-01","dayStart":"2024-01-01T00:00:00Z","dayEnd":"2024-01-01T23:59:59Z","msg":"Processing day window"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-01","scanned":1,"updated":0,"errors":0,"msg":"Completed day window"}
+{"level":"debug","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-02","dayStart":"2024-01-02T00:00:00Z","dayEnd":"2024-01-02T23:59:59Z","msg":"Processing day window"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-02","scanned":1,"updated":0,"errors":0,"msg":"Completed day window"}
+{"level":"debug","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-03","dayStart":"2024-01-03T00:00:00Z","dayEnd":"2024-01-03T23:59:59Z","msg":"Processing day window"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-03","scanned":1,"updated":0,"errors":0,"msg":"Completed day window"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"result":{"scanned":3,"updated":0,"dryRun":true,"days":3},"correlationId":"7e867c36-6f21-4589-9d29-462f420f3d9a","msg":"Backfill operation completed"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"params":{"from":"2024-01-01T00:00:00Z","to":"2024-01-01T23:59:59Z","dryRun":true},"correlationId":"23865c48-601b-4634-ad98-386e307bddba","workspaceId":"test-workspace","msg":"Starting backfill operation"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"dayCount":1,"startDate":"2024-01-01T00:00:00.000Z","endDate":"2024-01-01T23:59:59.000Z","msg":"Processing backfill by daily windows"}
+{"level":"debug","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-01","dayStart":"2024-01-01T00:00:00Z","dayEnd":"2024-01-01T23:59:59Z","msg":"Processing day window"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"date":"2024-01-01","scanned":1,"updated":1,"errors":0,"msg":"Completed day window"}
+{"level":"info","time":"2025-10-11T03:17:40.861Z","pid":42546,"result":{"scanned":1,"updated":1,"dryRun":true,"days":1},"correlationId":"23865c48-601b-4634-ad98-386e307bddba","msg":"Backfill operation completed"}
+{"level":"info","time":"2025-10-11T03:17:40.862Z","pid":42546,"params":{"from":"2024-01-01T00:00:00Z","to":"2024-01-01T23:59:59Z","dryRun":false},"correlationId":"69f4634b-8c92-4134-aa21-041ab2c13845","workspaceId":"test-workspace","msg":"Starting backfill operation"}
+{"level":"info","time":"2025-10-11T03:17:40.862Z","pid":42546,"dayCount":1,"startDate":"2024-01-01T00:00:00.000Z","endDate":"2024-01-01T23:59:59.000Z","msg":"Processing backfill by daily windows"}
+{"level":"debug","time":"2025-10-11T03:17:40.862Z","pid":42546,"date":"2024-01-01","dayStart":"2024-01-01T00:00:00Z","dayEnd":"2024-01-01T23:59:59Z","msg":"Processing day window"}
+{"level":"error","time":"2025-10-11T03:17:40.862Z","pid":42546,"err":{"type":"Error","message":"Network error","stack":"Error: Network error\n    at /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/tests/backfill.spec.ts:223:55\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:135:14\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:60:26\n    at runTest (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:781:17)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runSuite (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)\n    at runFiles (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:958:5)\n    at startTests (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:967:3)\n    at file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.19_jsdom@24.1.3/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7\n    at withEnv (file:///Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.19_jsdom@24.1.3/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5)"},"entryId":"entry-1","correlationId":"69f4634b-8c92-4134-aa21-041ab2c13845-day-2024-01-01-page-1-entry-1","msg":"Failed to process entry during backfill"}
+{"level":"info","time":"2025-10-11T03:17:40.864Z","pid":42546,"date":"2024-01-01","scanned":1,"updated":0,"errors":1,"msg":"Completed day window"}
+{"level":"info","time":"2025-10-11T03:17:40.864Z","pid":42546,"result":{"scanned":1,"updated":0,"dryRun":false,"days":1},"correlationId":"69f4634b-8c92-4134-aa21-041ab2c13845","msg":"Backfill operation completed"}
+ ✓ tests/backfill.spec.ts  (6 tests) 36ms
+ ✓ tests/webhookSecurity.spec.ts  (8 tests) 11ms
+stdout | tests/sidebarToken.spec.ts > Sidebar token refresh (JSDOM) > updates token and refetches on addonTokenRefreshed
+Token refreshed successfully
+
+stderr | tests/sidebarToken.spec.ts > Sidebar token refresh (JSDOM) > shows error badge on refreshAddonTokenFailed
+Token refresh failed
+
+ ✓ tests/sidebarToken.spec.ts  (3 tests) 107ms
+
+ Test Files  9 passed (9)
+      Tests  70 passed (70)
+   Start at  05:17:40
+   Duration  1.13s (transform 652ms, setup 97ms, collect 1.47s, tests 252ms, environment 371ms, prepare 1.09s)
+
+
+> @xcfe/admin-ui@0.1.0 test /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/apps/admin-ui
+> vitest --run
+
+
+ RUN  v1.6.1 /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/apps/admin-ui
+
+ ✓ src/__tests__/smoke.spec.ts  (1 test) 1ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  05:17:41
+   Duration  245ms (transform 17ms, setup 0ms, collect 12ms, tests 1ms, environment 0ms, prepare 59ms)
+

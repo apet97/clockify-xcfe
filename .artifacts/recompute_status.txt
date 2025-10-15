@@ -1,0 +1,21 @@
+# Recompute Endpoint Status
+
+## Authentication: ✅ WORKING
+- Unsigned JWT accepted with DEV_ALLOW_UNSIGNED=true
+- JWT validation successful (type: addon, required claims present)
+
+## Request Validation: ✅ WORKING
+- Accepts POST with JSON body {startDate, endDate}
+- Returns 400 with validation details on invalid input
+- Returns 405 JSON on GET requests
+
+## Clockify API Integration: ⏸️ BLOCKED
+Error: "Clockify request failed with status 401"
+
+Root cause: Test workspace 'ws-test' doesn't exist on real Clockify API.
+
+## Next Steps:
+Provide REAL_IFRAME_JWT from actual Clockify workspace to complete E2E test.
+
+## Test JWT Used (unsigned):
+eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJpc3MiOiJjbG9ja2lmeSIsInN1YiI6InhjZmUuZXhhbXBsZSIsInR5cGUiOiJhZGRvbiIsImFkZG9uSWQiOiJ4Y2ZlLmV4YW1wbGUiLCJ3b3Jrc3BhY2VJZCI6IndzLXRlc3QiLCJ1c2VySWQiOiJ1c2VyLXRlc3QiLCJ1c2VyIjoidXNlci10ZXN0IiwiYmFja2VuZFVybCI6Imh0dHBzOi8vYXBpLmNsb2NraWZ5Lm1lL2FwaS92MSIsInJlcG9ydHNVcmwiOiJodHRwczovL2FwaS5jbG9ja2lmeS5tZS9yZXBvcnQiLCJwbGFuIjoiRlJFRSIsImV4cCI6MTc2MDA2NjEzMiwiaWF0IjoxNzYwMDYyNTMyfQ.

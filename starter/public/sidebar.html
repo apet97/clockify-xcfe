@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Reports</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+      color: #333;
+      padding: 16px;
+      line-height: 1.5;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #03a9f4;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #03a9f4;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .card {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .metric-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #03a9f4;
+      margin-bottom: 8px;
+    }
+
+    .metric-label {
+      font-size: 14px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .info-label {
+      color: #666;
+      font-weight: 500;
+    }
+
+    .info-value {
+      color: #333;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+    }
+
+    .button {
+      width: 100%;
+      padding: 12px;
+      background: #03a9f4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 8px;
+    }
+
+    .button:hover {
+      background: #0288d1;
+    }
+
+    .button.secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+
+    .button.secondary:hover {
+      background: #eeeeee;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #d32f2f;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 24px;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #999;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">⏱️ Time Reports</div>
+    <div class="subtitle">Track your time entries</div>
+  </div>
+
+  <div id="content">
+    <div class="loading">
+      <span class="spinner">⏳</span> Loading time data...
+    </div>
+  </div>
+
+  <div id="info-card" class="card" style="display: none;">
+    <div class="info-row">
+      <span class="info-label">Workspace:</span>
+      <span class="info-value" id="workspace-id">—</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">User:</span>
+      <span class="info-value" id="user-id">—</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Backend:</span>
+      <span class="info-value" id="backend-url">—</span>
+    </div>
+  </div>
+
+  <button id="refresh-btn" class="button" onclick="loadTimeData()">
+    🔄 Refresh
+  </button>
+
+  <button class="button secondary" onclick="refreshToken()">
+    🔑 Refresh Token
+  </button>
+
+  <div class="footer">
+    Time Reports v1.0.0
+  </div>
+
+  <script>
+    let authToken = null;
+    let claims = null;
+
+    // Parse auth_token from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    authToken = urlParams.get('auth_token');
+
+    if (!authToken) {
+      document.getElementById('content').innerHTML =
+        '<div class="error">Missing auth_token in URL. This add-on must be opened from Clockify.</div>';
+    } else {
+      initializeSidebar();
+    }
+
+    /**
+     * Decode JWT claims (base64 payload)
+     */
+    function decodeClaims(token) {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          throw new Error('Invalid JWT format');
+        }
+        const payload = parts[1];
+        // Base64URL decode
+        const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+        return JSON.parse(decoded);
+      } catch (error) {
+        console.error('Failed to decode JWT:', error);
+        return null;
+      }
+    }
+
+    /**
+     * Initialize sidebar with claims
+     */
+    function initializeSidebar() {
+      claims = decodeClaims(authToken);
+
+      if (!claims) {
+        document.getElementById('content').innerHTML =
+          '<div class="error">Failed to decode JWT claims</div>';
+        return;
+      }
+
+      // Display workspace info
+      document.getElementById('workspace-id').textContent = claims.workspaceId || '—';
+      document.getElementById('user-id').textContent = claims.user || '—';
+      document.getElementById('backend-url').textContent = claims.backendUrl || '—';
+      document.getElementById('info-card').style.display = 'block';
+
+      // Send welcome toast
+      sendToastMessage('Time Reports loaded successfully', 'info');
+
+      // Load time data
+      loadTimeData();
+
+      // Listen for URL changes from Clockify
+      window.addEventListener('message', handleMessage);
+    }
+
+    /**
+     * Load time entries for last 7 days
+     */
+    async function loadTimeData() {
+      const contentDiv = document.getElementById('content');
+      const refreshBtn = document.getElementById('refresh-btn');
+
+      if (!claims || !claims.backendUrl || !claims.workspaceId || !claims.user) {
+        contentDiv.innerHTML = '<div class="error">Missing required claims</div>';
+        return;
+      }
+
+      try {
+        refreshBtn.disabled = true;
+        contentDiv.innerHTML = '<div class="loading"><span class="spinner">⏳</span> Loading...</div>';
+
+        // Calculate date range (last 7 days)
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const url = `${claims.backendUrl}/v1/workspaces/${claims.workspaceId}/user/${claims.user}/time-entries` +
+          `?start=${sevenDaysAgo.toISOString()}` +
+          `&end=${now.toISOString()}` +
+          `&page-size=200`;
+
+        const response = await fetch(url, {
+          headers: {
+            'X-Addon-Token': authToken
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const entries = await response.json();
+
+        // Calculate total duration
+        let totalSeconds = 0;
+        entries.forEach(entry => {
+          if (entry.timeInterval && entry.timeInterval.duration) {
+            // Parse ISO 8601 duration (PT1H30M) or numeric seconds
+            const duration = parseDuration(entry.timeInterval.duration);
+            totalSeconds += duration;
+          }
+        });
+
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+        // Display results
+        contentDiv.innerHTML = `
+          <div class="card">
+            <div class="metric">
+              <div class="metric-value">${hours}h ${minutes}m</div>
+              <div class="metric-label">Last 7 Days</div>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Entries:</span>
+              <span class="info-value">${entries.length}</span>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Failed to load time data:', error);
+        contentDiv.innerHTML = `
+          <div class="error">
+            <strong>Error:</strong> ${error.message}
+          </div>
+        `;
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    /**
+     * Parse ISO 8601 duration to seconds
+     */
+    function parseDuration(duration) {
+      if (typeof duration === 'number') {
+        return duration;
+      }
+
+      // Parse PT1H30M45S format
+      const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (!match) return 0;
+
+      const hours = parseInt(match[1] || 0);
+      const minutes = parseInt(match[2] || 0);
+      const seconds = parseInt(match[3] || 0);
+
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    /**
+     * Request token refresh from Clockify
+     */
+    function refreshToken() {
+      if (window.top && window.top.postMessage) {
+        window.top.postMessage(
+          JSON.stringify({ action: 'refreshAddonToken' }),
+          '*'
+        );
+        sendToastMessage('Requesting token refresh...', 'info');
+      } else {
+        alert('Token refresh not available in this context');
+      }
+    }
+
+    /**
+     * Send toast message to Clockify
+     */
+    function sendToastMessage(message, type = 'info') {
+      if (window.top && window.top.postMessage) {
+        window.top.postMessage(
+          JSON.stringify({
+            action: 'toastrPop',
+            payload: {
+              type: type, // 'info' | 'success' | 'warning' | 'error'
+              message: message
+            }
+          }),
+          '*'
+        );
+      }
+    }
+
+    /**
+     * Handle window messages from Clockify
+     */
+    function handleMessage(event) {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+
+        if (data.action === 'addonTokenRefreshed' && data.payload?.auth_token) {
+          // Update token
+          authToken = data.payload.auth_token;
+          claims = decodeClaims(authToken);
+
+          sendToastMessage('Token refreshed successfully', 'success');
+          loadTimeData();
+        } else if (data.action === 'refreshAddonTokenFailed') {
+          sendToastMessage('Token refresh failed', 'error');
+        } else if (data.action === 'URL_CHANGED') {
+          // Handle navigation changes if needed
+          console.log('URL changed:', data.payload);
+        }
+      } catch (error) {
+        console.error('Error handling message:', error);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    xCFE E2E Test - Step 8 Quick Guide                      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+STATUS
+------
+✓ Local server running: http://localhost:8080
+✗ Cloudflare tunnel inactive (controller-terrain-usc-confidentiality.trycloudflare.com)
+✓ E2E script ready: ./scripts/e2e_test.sh
+
+
+QUICK START (Choose One)
+-------------------------
+
+OPTION A: Already have add-on installed with working tunnel
+1. Start tunnel:
+   cloudflared tunnel --url http://localhost:8080
+
+2. Update .env:
+   BASE_URL=https://your-new-tunnel-url.trycloudflare.com
+
+3. Restart dev server:
+   pnpm dev
+
+4. Run E2E test:
+   ./scripts/e2e_test.sh
+
+
+OPTION B: Fresh installation needed
+1. Start tunnel:
+   # ngrok (recommended)
+   ngrok http 8080
+
+   # OR cloudflared
+   cloudflared tunnel --url http://localhost:8080
+
+2. Update .env BASE_URL with tunnel URL
+
+3. Restart dev server:
+   pnpm dev
+
+4. Upload manifest:
+   → https://marketplace.clockify.me/apps/console
+   → Manifest URL: ${BASE_URL}/manifest.json
+   → Save and deploy
+
+5. Install add-on:
+   → Clockify → Settings → Integrations → Add-ons
+   → Find "xCustom Field Expander" → Install
+
+6. Get JWT:
+   → Open Clockify time tracker
+   → Click xCFE sidebar
+   → F12 → Network tab → filter "sidebar"
+   → Find: /ui/sidebar?auth_token=eyJ...
+   → Copy entire auth_token value
+
+7. Run E2E test:
+   ./scripts/e2e_test.sh
+   → Paste JWT when prompted
+
+
+MANUAL E2E TEST (Without Script)
+---------------------------------
+export REAL_JWT="paste-your-jwt-here"
+export BASE_URL="https://your-tunnel-url"
+
+START=$(date -u -v-24H +%FT%TZ 2>/dev/null || date -u -d '24 hours ago' +%FT%TZ)
+END=$(date -u +%FT%TZ)
+
+curl -si -X POST "${BASE_URL}/v1/formulas/recompute?auth_token=${REAL_JWT}" \
+  -H 'content-type: application/json' \
+  -d "{\"startDate\":\"${START}\",\"endDate\":\"${END}\"}" \
+  | tee .artifacts/recompute_ok.txt
+
+
+EXPECTED RESULT
+---------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "evaluated": 10,
+  "updated": 5
+}
+
+
+TROUBLESHOOTING
+---------------
+HTTP 401 → JWT expired/invalid
+  Fix: Refresh Clockify page, copy new auth_token, retry
+
+HTTP 429 → Rate limited
+  Fix: Wait for Retry-After header duration, then retry
+
+HTTP 502 → Upstream non-JSON or network issue
+  Fix: Check server logs, verify BASE_URL matches manifest
+
+HTTP 5xx → Server error
+  Fix: Check server logs for stack trace
+
+
+ARTIFACTS GENERATED
+-------------------
+.artifacts/recompute_ok.txt  ← Full HTTP response from recompute endpoint
+
+
+VERIFICATION
+------------
+Check that recompute endpoint:
+1. Returns HTTP 200
+2. JSON body has "evaluated" and "updated" fields
+3. Values match expected time entry count
+4. No errors in server logs
+
+
+NEXT STEPS (After E2E Success)
+-------------------------------
+1. Test verify endpoint:
+   curl "${BASE_URL}/v1/formulas/verify?auth_token=${REAL_JWT}&entryId=<id>"
+
+2. Check updated custom fields in Clockify UI
+
+3. Review server logs for PUT requests to Clockify API
+
+4. Generate additional artifacts (puts.txt, readback_entry.json, etc.)
+
+
+MANIFEST URL
+------------
+${BASE_URL}/manifest.json
+
+Must be publicly accessible HTTPS URL for Clockify marketplace
+
+
+CURRENT ENVIRONMENT
+-------------------
+BASE_URL: https://controller-terrain-usc-confidentiality.trycloudflare.com (inactive)
+PORT: 8080
+ADDON_KEY: xcfe.example
+DEV_ALLOW_UNSIGNED: true
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+TL;DR
+1. Start ngrok/cloudflared tunnel
+2. Update BASE_URL in .env
+3. Restart pnpm dev
+4. Run: ./scripts/e2e_test.sh
+5. Paste JWT when prompted
+6. Check .artifacts/recompute_ok.txt for results
+
+═══════════════════════════════════════════════════════════════════════════

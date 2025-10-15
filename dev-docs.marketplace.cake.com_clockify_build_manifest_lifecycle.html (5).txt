@@ -1,0 +1,156 @@
+cakKe.com/| developers Q Developer portal More resources
+
+Menu ON THIS PAGE >
+
+Ul Components
+
+The Ul components are pages which are used to integrate your add-ons Ul with Clockify. They serve as an entry
+
+point to the user's interaction with your add-on.
+
+Ul components are served as HTML pages and loaded inside when redered on the Clockify site. At the
+time of loading, components will be provided with the relevant context they need in order to function such as an
+
+as well as information the current location on the app and
+
+Entrypoints to your components can be added to a variety of available on the Clockify site.
+Definition
+
+Ul components must be defined in the . They contain information about the location, label, icon
+and other component-specific attributes as detailed on the . Components
+can be added, modified or removed in subsequent . Changes to an add-on components
+
+will not take effect until the new version of the add-on is approved and published.
+
+Settings UI
+
+The is also a Ul component, with the only difference being that it's not defined as part of the
+
+components but rather as part of the settings field of the manifest.
+
+Interacting with the API
+
+Ul components can interact with the in two ways:
+* by calling the directly
+
+All components are provided with an in the form of a query parameter. This token has the
+same permissions and access as the user who is currently viewing the Ul. This token, which in case it's provided
+
+to Ul components is called the user token , can be used to make authenticated requests to the
+* by interacting with an add-on backend service
+
+In this case it's up to the developer to implement the relevant authentication mechanisms and APIs. The add-on
+will be provided with an in case the installed lifecycle has been configured, although you
+
+may also choose to forward the to your backend service as part of the requests.
+
+Types
+
+There are three types of components in Clockify, each having its own location where the component will be
+
+shown.
+
+Sidebar
+
+0 Ul examples
+
+CLIENTS
+
+> TAGS
+
+> SIDEBAR
+
+A sidebar entry is an entry that is added to the add-ons section of the Clockify sidebar, located on the left side
+of the page. New entries always default to the add-ons section, although they can be manually moved according
+to the user's preferences. Add-on can add new element in a sidebar automatically, or if user enables it through
+
+Settings by clicking Show more and Add-ons.
+Now, you can specify sidebar's properties:
+
+* Added if at least one enabled add-on has "Sidebar" component specified in manifest
++ Not removed even if empty
+» Users can put other elements in it (from other sections)
+
++ New add-on sidebar elements are always added to the Add-on section
+
+Element can be moved from the Add-on to other sections and is removed from the Add-on section if it is
+
+uninstalled or disabled in the optional add-on’s settings.
+
+Widget
+
+A widget is a small icon which is displayed at the bottom-right section of the page. It serves an entrypoint to Ul
+
+components that are defined with the WIDGET type.
+
+Widget
+
+Support chat Active 5min ago
+
+2 Alex
+
+The widget icon will serve as an entrypoint to one or more Ul components according to the rules below:
+
+Widget icon is displayed if at least one add-on with widget component is installed and enabled at the bottom
+
+right corner of the page.
+
+Widget list is displayed if more than one add-on with widget component is installed and enabled at the bottom
+
+right corner of the page.
+
+Widget is not visible if there are no installed add-ons that have widget as a component in the manifest, or if all
+
+add-ons with widget component are disabled.
+
+Tabs
+
+A tab is a location that can be defined for components which extend the functionality of existing pages with tabs.
+
+Add-on tabs will be added after the default tabs of the pages that support them.
+
+MEMBERS GROUPS EM [0 TEAM TAB
+
+88 pasHBoarD
+
+Jil REPORTS
+
+[J Some Label
+
+() CLIENTS
+
+Add-on can add new element in tab automatically, or if user enables it through Settings. Add-on tabs are added
+
+after the existing tabs and are sorted by the date when they where added.
+Tabs can be added to the following pages:
+
+e Time off
+e Schedule
+* Approvals
+* Reports
+
+o Activity
+
+e Team
+
+* Project
+
+Settings UI
+
+The is technically also a Ul location, although it must be configured on the settings field rather than
+
+as a component. The Ul can be accessed through the add-on options dropdown on the add-ons tab.
+
+ACCOUNTS THENTICATION | CUSTOM FIELD:
+
+Conky lean: Clase your tes data
+
+Insights
+
+Access
+
+A component can be configured to be visible to everyone, or only to users with the admin role.
+
+Previous Page Next Page
+
+© 2025 CAKE.com Inc. All Rights Reserved. Terms Privacy,

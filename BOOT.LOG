@@ -1,0 +1,7 @@
+# Boot Log - feat/ot-calcs
+- 2025-10-08T22:21:45+02:00 `corepack enable pnpm` → success (pnpm already active).
+- 2025-10-08T22:21:46+02:00 `pnpm install` → success (lockfile up to date).
+- 2025-10-08T22:21:52+02:00 `pnpm run dev` → failed: `docker compose up -d db adminer` cannot connect to daemon at `/Users/15x/.docker/run/docker.sock` (Docker Desktop not running); script exits via `set -e`.
+- Follow-up: add daemon availability check / flag to `scripts/dev.sh`, reattempt when Docker service is reachable or provide alternative dev workflow.
+- 2025-10-08T21:23:22Z `pnpm --filter @xcfe/api typecheck` → success (strict mode clean).
+- 2025-10-08T21:23:23Z `pnpm run test` → success (API + Admin UI vitest suites).

@@ -1,0 +1,273 @@
+An End-to-End Guide to Building and Publishing Clockify Add-ons1. Executive SummaryThis report provides a comprehensive, end-to-end technical guide for developers and systems architects on creating, publishing, and maintaining add-ons for Clockify on the CAKE.com Marketplace. Clockify add-ons are powerful extensions that enhance the core application's functionality, enabling custom workflows, third-party integrations, and bespoke data visualizations.The Clockify add-on ecosystem is architected around a developer-hosted model. This fundamental principle grants developers complete freedom over their technology stack, infrastructure, and deployment processes. However, it also confers full responsibility for the add-on's operational integrity, including uptime, performance, security, and data compliance. An add-on is not merely code; it is a service that the developer builds and operates.Integration with the Clockify platform is achieved through a declarative manifest file (manifest.json). This file serves as the central contract, defining the add-on's identity, its required permissions (scopes), and its integration points within the Clockify user interface. It specifies where custom UI components will be rendered, what lifecycle events the add-on's backend should be notified of, and which real-time data events it subscribes to via webhooks.1Security and context are managed through a robust, JWT-centric authentication system. Clockify issues JSON Web Tokens (JWTs) for different contexts: long-lived, admin-level Installation Tokens for backend processes; short-lived, user-scoped User Tokens for UI interactions; and specialized Signature Tokens for verifying webhook authenticity. A critical aspect of this model is that JWTs carry not only authentication data but also vital runtime configuration, such as the correct regional API endpoints for a given workspace. This design ensures that add-ons are inherently environment-agnostic and can operate seamlessly across Clockify's global infrastructure.3The development lifecycle proceeds through several distinct phases. It begins with local development, facilitated by tunneling services to expose local servers to the Clockify cloud. This is followed by defining the manifest, implementing the UI and backend business logic, and conducting thorough testing using private add-on deployments. The final stage involves preparing a high-quality marketplace listing and submitting the add-on for review and publication. Post-launch, developers are responsible for ongoing maintenance and updates, which are managed through a versioning and review process.1 This guide provides the detailed architectural understanding, practical code examples, and operational checklists necessary to navigate this entire lifecycle successfully.2. Architecture and Data FlowsCore Architectural ModelA Clockify add-on is an external, developer-managed application that integrates with the Clockify platform. The architecture is defined by three primary elements: the manifest, the business logic, and an optional user interface.Developer Hosting Responsibility: The developer is solely responsible for hosting all resources required for the add-on to function. This includes the manifest file, web servers to handle API requests and serve UI assets, databases for storing add-on specific data, and any other infrastructural components. CAKE.com does not host any part of the add-on's code or infrastructure, providing maximum technological flexibility at the cost of complete operational ownership. This model necessitates a "you build it, you run it" approach, where considerations for reliability, scalability, and security are paramount from the project's inception.Integration via iframes: When an add-on includes a user interface, its components are rendered within <iframe> elements inside the Clockify application. This technique effectively sandboxes the add-on's UI, preventing it from interfering with the host application's DOM or styles, while allowing it to appear as a seamless, integrated part of the user experience. The source URL for each iframe is constructed dynamically by Clockify based on the baseUrl and component path defined in the manifest.1Communication Channels: An add-on communicates with Clockify through three distinct channels:Direct API Calls from UI: The add-on's frontend JavaScript, running inside an iframe, can make direct REST API calls to the Clockify API.Backend-to-Backend API Calls: The add-on's backend server can make API calls to the Clockify API for server-side processes.Window Events: The iframe-hosted UI can communicate with the parent Clockify application by listening to and dispatching window events, for tasks such as requesting a refreshed authentication token.1"How It Works" Diagram and Flow DescriptionsThe following diagrams and descriptions illustrate the two primary interaction flows between a user, Clockify, and a developer-hosted add-on.Scenario A: UI Component Interaction FlowThis flow describes the sequence of events when a user interacts with an add-on's UI component embedded within Clockify.User Action in Clockify UI
+|
+     v
+1.  [Clockify Frontend]
+    - User navigates to a location with a registered UI component (e.g., sidebar link).
+    - Reads add-on manifest to find component's base URL and path.
+    - Generates a short-lived User Token (JWT).
+    - Renders an iframe with src: "{baseUrl}{path}?auth_token={JWT}"
+|
+| HTTP GET Request
+     v
+2. 
+    - Receives GET request for the component's HTML/JS.
+    - Serves the static assets for the UI.
+|
+| HTML/JS Response
+     v
+3. 
+    - JavaScript loads and executes.
+    - Extracts `auth_token` from `window.location.search`.[5]
+    - Decodes JWT to extract `backendUrl`, `workspaceId`, `user` ID.[3, 5]
+|
+| REST API Call
+     v
+4. 
+    - Receives API request (e.g., GET {backendUrl}/v1/user).
+    - Request must include the `X-Addon-Token` header containing the JWT.[1, 4]
+    - Validates JWT signature and claims.
+    - Processes request and fetches data.
+|
+| API JSON Response
+     v
+5. 
+    - Receives API data.
+    - Renders the data to the user, completing the interaction.
+Scenario B: Webhook Event FlowThis flow describes how Clockify notifies an add-on's backend about a real-time event.Event in Clockify
+(e.g., Time Entry Created)
+|
+     v
+1. 
+    - An event occurs that the add-on is subscribed to via its manifest.
+    - Generates a Webhook Signature Token (JWT).
+    - Constructs an HTTP POST request with the event payload.
+|
+| HTTP POST Request to {baseUrl}{webhookPath}
+| Headers:
+| - clockify-signature: {JWT}
+| - clockify-webhook-event-type: TIME_ENTRY_CREATED
+     v
+2. 
+    - Receives the incoming POST request at the registered webhook endpoint.
+    - Extracts the JWT from the `clockify-signature` header.[8]
+    - **Crucially, validates the JWT signature** using Clockify's public key to ensure authenticity.[8]
+    - Parses the JSON payload from the request body.
+|
+     v
+3. 
+    - Processes the event (e.g., syncs data to another service, sends a notification).
+    - May use its stored Installation Token to make follow-up API calls to Clockify for more context.
+|
+     v
+4. 
+    - Responds to Clockify with a 2xx status code to acknowledge successful receipt.
+3. Authentication and Authorization Deep DiveThe security model for Clockify add-ons is built entirely on JSON Web Tokens (JWTs). Every authenticated request to the Clockify API made by an add-on must include an X-Addon-Token header containing a valid JWT.1 The platform provides distinct token types for different contexts, a design choice that enforces security best practices and the principle of least privilege.Token Types and Their RolesUnderstanding the purpose of each token type is critical for building a secure and functional add-on.Installation TokenAcquisition: This token is delivered exactly once, within the payload of the installed lifecycle hook, which is triggered when a user installs the add-on to a workspace.4Scope: It grants admin-level privileges over the entire workspace where the add-on is installed.Lifespan: The Installation Token is permanent and does not expire. It is only invalidated if the add-on is uninstalled from the workspace.4Use Case: This token is intended exclusively for server-to-server communication initiated by the add-on's backend. Examples include background data synchronization, processing webhook events, or performing administrative actions that are not tied to a specific user session.Security Imperative: Due to its power and longevity, the Installation Token is a highly sensitive secret. It must be stored securely in an encrypted vault or secret management system and must never be exposed to any frontend client or embedded in client-side code.User TokenAcquisition: This token is supplied as a URL query parameter named auth_token whenever an add-on's UI component is loaded into an iframe within Clockify.4Scope: The permissions associated with this token are identical to those of the user who is currently viewing the UI component. Any API call made with this token acts on behalf of that specific user.Lifespan: The User Token is ephemeral, with a lifespan of 30 minutes.4 A new token can be requested from the host application by dispatching a specific window event from the iframe, ensuring the user's session can be seamlessly maintained without requiring a page reload.Use Case: This is the primary token for all API calls originating from the add-on's user interface. Using the User Token ensures that all actions correctly respect the user's permissions and are properly audited within Clockify. It can also be passed to the add-on's backend to perform actions on behalf of a specific user.Webhook Signature TokenAcquisition: This token is delivered in the clockify-signature HTTP header of every webhook request sent from Clockify to the add-on's backend.8Scope: This token cannot be used to authenticate against the Clockify API. Its sole purpose is cryptographic verification of the webhook's origin and integrity.4Lifespan: The token does not expire. A unique, persistent token is generated for each webhook type defined in the manifest for each individual add-on installation.8Use Case: Mandatory signature validation within the webhook handler to confirm that the request is a legitimate event from Clockify and not a malicious, spoofed request.The deliberate separation of a powerful, long-lived backend token from a limited, short-lived frontend token is a foundational security feature. It architecturally prevents common but dangerous anti-patterns, such as embedding a master API key in JavaScript. The platform's design guides developers toward a more secure posture by default. For scenarios where a backend process needs to act on behalf of a user, Clockify provides a secure endpoint to exchange the Installation Token for a temporary User Token, bridging the two contexts without compromising the long-lived secret.4JWT Validation: A Non-Negotiable Security StepProperly validating every incoming JWT is a mandatory security measure. All tokens issued by Clockify are signed using the RSA256 algorithm.4Public Key: To verify the token's signature, the official Clockify X509 public key must be used. This key is provided in PEM format within the developer documentation.4 Its location was highlighted in the developer forum, underscoring its importance.10Note: The public key is available at https://dev-docs.marketplace.cake.com/clockify/build/authentication-and-authorization.html. A placeholder is used in code examples for illustrative purposes.Verification Process: A robust validation process involves several checks:Signature Verification: The token's signature must be cryptographically verified against the Clockify public key using the RSA256 algorithm. Any failure here indicates the token is forged or has been tampered with.Claim Validation: After the signature is verified, several claims within the token's payload must also be checked:iss (Issuer): Must be the string "clockify".8exp (Expiration Time): For User Tokens, this timestamp must be in the future.sub (Subject): Must exactly match the add-on's unique key as defined in its manifest. This critical check prevents a token intended for one add-on from being used to attack another.3Failure to perform any of these validation steps exposes the add-on and its users to significant security risks.Token Decision GuideThe following table provides a clear guide for selecting the appropriate token for various scenarios.ScenarioToken to UseHow to ObtainKey CharacteristicsA user interacts with the add-on's UI.User TokenFrom the auth_token URL query parameter.Short-lived (30 min), user-scoped permissions.A backend process needs to sync data for the entire workspace.Installation TokenFrom the installed lifecycle hook payload.Non-expiring, admin-level permissions.A backend process needs to perform an action on behalf of a specific user.Installation Token (exchanged for a User Token)Call the token exchange endpoint with the Installation Token.Obtains a temporary, user-scoped token for the backend.A server receives a webhook notification from Clockify.Webhook Signature Token (for verification)From the clockify-signature request header.Cannot be used for API calls; for signature validation only.4. The Add-on Manifest: A Comprehensive ReferenceThe manifest.json file is the declarative heart of a Clockify add-on. It is the single source of truth that describes the add-on's properties, capabilities, and integration points to the Clockify platform.1 Any changes to the manifest that alter the add-on's integration, such as adding a new UI component or requesting additional API scopes, require submitting a new version of the add-on for review and approval. The latest documented schema version is 1.3, which should be used for all new development.2Minimal Manifest ExampleThis example represents the simplest possible functional manifest for an add-on that displays a UI component in the sidebar and reads basic user information.JSON{
+  "schemaVersion": "1.3",
+  "key": "minimal-demo-addon-unique-key",
+  "name": "Minimal Demo Add-on",
+  "baseUrl": "https://your-addon-server.com",
+  "scopes":,
+  "components":
+}
+"Full" Manifest ExampleThis example demonstrates a more complex add-on with multiple components, structured settings, lifecycle hooks, and webhook subscriptions.JSON{
+  "schemaVersion": "1.3",
+  "key": "advanced-reporting-addon-key",
+  "name": "Advanced Reporting Add-on",
+  "baseUrl": "https://reporting-addon.example.com",
+  "description": "An advanced add-on that provides custom project reports, integrates with an external service, and listens for real-time time entry updates.",
+  "iconPath": "/assets/icon.svg",
+  "requiredPlan": "PRO",
+  "scopes":,
+  "components":,
+  "settings": {
+    "type": "STRUCTURED",
+    "path": "/api/lifecycle/settings-updated",
+    "properties":
+  },
+  "lifecycle": {
+    "installed": "/api/lifecycle/installed",
+    "deleted": "/api/lifecycle/deleted",
+    "statusChanged": "/api/lifecycle/status-changed"
+  },
+  "webhooks":
+}
+Manifest Cheat-SheetThis table provides a detailed reference for all primary manifest fields based on schema version 1.3.2PropertyRequiredDescriptionExample ValueschemaVersionYesSpecifies the manifest schema version being used."1.3"keyYesA globally unique identifier for the add-on. It is used in JWT validation (sub claim)."my-unique-addon-key"nameYesThe human-readable name of the add-on, displayed in the Clockify UI."My Awesome Add-on"baseUrlYesThe base URL for all relative paths defined in the manifest (components, webhooks, etc.)."https://addon.example.com"descriptionNoA short description of the add-on's purpose, visible in the add-on settings tab."This add-on provides custom reporting features."iconPathNoA relative path to the add-on's icon, displayed in the UI."/assets/icon.png"requiredPlanNoThe minimum Clockify subscription plan required to install the add-on."PRO" (Other values include FREE, STANDARD, ENTERPRISE)scopesNoAn array of strings defining the API permissions the add-on requires.``componentsNoAn array of objects defining the UI integration points.``components.locationYesThe specific location in the Clockify UI where the component will be rendered."SIDEBAR", "PROJECT_OVERVIEW"components.accessYesThe user permission level required to see and access the component."EVERYONE", "ADMINS"components.pathYesThe relative path from baseUrl to the component's HTML page."/ui/main-view"components.labelYesThe text label for the component's entry point (e.g., the sidebar link text)."Custom Reports"settingsNoAn object defining how the add-on's settings are configured.{"type": "STRUCTURED",...}settings.typeYesThe type of settings UI. STRUCTURED uses a Clockify-rendered form."STRUCTURED"settings.pathYesThe relative path to a webhook that is notified when structured settings are updated."/lifecycle/settings-updated"settings.propertiesYesAn array defining the fields for a STRUCTURED settings form.``lifecycleNoAn object mapping lifecycle events to webhook paths.{"installed": "/lifecycle/installed",...}lifecycle.installedNoThe relative path to a webhook that receives the Installation Token when the add-on is installed."/lifecycle/installed"lifecycle.deletedNoThe relative path to a webhook that is notified when the add-on is uninstalled."/lifecycle/deleted"lifecycle.statusChangedNoThe relative path to a webhook that is notified when the add-on is enabled or disabled."/lifecycle/status-changed"webhooksNoAn array of objects that subscribe the add-on to specific real-time events in Clockify.``webhooks.webhookTypeYesThe specific event type to subscribe to."TIME_ENTRY_CREATED"webhooks.pathYesThe relative path to the webhook endpoint that will receive notifications for this event."/webhooks/time-entry"5. Catalog of UI Component Integration PointsUI components are the visual gateways to an add-on's functionality, embedded directly within the Clockify application via iframes. The location property within a component's manifest definition is the key to controlling where it appears. Choosing the correct location is crucial for creating an intuitive and contextually relevant user experience.The following table catalogs the known UI component locations. The complete and authoritative list of supported locations can be found by inspecting the official manifest JSON schema, which is available from the Clockify developer API.2Location EnumDescription & Intended UseUser Access (access)Example User FlowSIDEBARAdds a new, top-level navigation item to the main vertical sidebar on the left of the Clockify interface. This is the most prominent location and is ideal for the add-on's primary features or main dashboard.EVERYONE or ADMINSA user clicks on the "Custom Reports" link in the sidebar to open the add-on's main reporting interface, which takes over the main content area.PROJECT_OVERVIEWEmbeds a custom widget or panel within the main overview page of a specific project. This location is perfect for displaying project-specific data, metrics, or actions that are relevant to the project being viewed.EVERYONE or ADMINSA project manager navigates to a project's detail page and sees a widget from a "Budgeting Add-on" that displays real-time budget consumption and profitability metrics for that specific project.TIMESHEET_HEADERAdds a button, link, or small interactive element to the header area of the Timesheet page. This is suitable for actions related to the timesheet itself, such as exporting data in a custom format or importing entries from another system.EVERYONE or ADMINSAn employee on the Timesheet page clicks a "Sync to Payroll" button added by an add-on, which triggers a process to send their weekly hours to an external payroll system.REPORTS_DASHBOARDAdds a new custom visualization or data block to the main Reports dashboard. This allows an add-on to present its own analytics alongside Clockify's native reports, creating a unified analytical experience.EVERYONE or ADMINSA team lead views the Reports dashboard and sees a custom chart from a "Team Performance Add-on" that visualizes task completion velocity next to the standard time-tracked reports.6. Handling Environments and RegionsClockify's production infrastructure is globally distributed across multiple regions and supports custom subdomains for certain customers. This architecture means that the API endpoints for a given workspace are not fixed. A fundamental requirement for any robust Clockify add-on is that it must not hardcode API base URLs.3The platform solves this challenge elegantly by using the JWT authentication token as a dynamic, just-in-time configuration provider. Every Installation Token and User Token contains a set of URL claims that provide the exact base URLs for all necessary API services corresponding to the workspace in question.3This design makes the add-on inherently environment-agnostic. The same deployed codebase can seamlessly serve a workspace hosted in the EU, another in the US, and a third on a custom enterprise subdomain, all without requiring any changes or complex environment-specific configurations within the add-on itself. The add-on simply needs to trust the token it receives for each context.Dynamic Endpoint Resolution ImplementationThe implementation pattern is straightforward and must be applied consistently:Receive Token: Obtain the JWT, either from the auth_token query parameter in a UI component or from the installed lifecycle hook payload on the backend.Decode Payload: Decode the JWT payload to access its claims. While full signature validation is required for security, the payload can be base64-decoded to read the claims.Extract URLs: Extract the required URL claims, such as backendUrl, reportsUrl, etc.Construct API Calls: Use these extracted URLs as the base for all subsequent API requests related to that specific workspace and user context.Region/Base-URL Decision TableThis table illustrates how to map the JWT claims to the correct API service endpoints.JWT ClaimExample ValueTarget API ServiceExample API CallbackendUrl"https://api.clockify.me/api"Core REST API (Users, Projects, Time Entries, etc.)GET {backendUrl}/v1/workspaces/{wsId}/userreportsUrl"https://reports.api.clockify.me"Reporting API (Summary, Detailed, Weekly reports)POST {reportsUrl}/v1/workspaces/{wsId}/reports/summarylocationsUrl"https://locations.api.clockify.me"Geolocation & GPS Tracking APIGET {locationsUrl}/v1/workspaces/{wsId}/location/...screenshotsUrl"https://screenshots.api.clockify.me"Screenshots API (for screen capture feature)GET {screenshotsUrl}/v1/workspaces/{wsId}/screenshots/...7. Implementing and Verifying WebhooksWebhooks are the primary mechanism for Clockify to send real-time, event-driven notifications to an add-on's backend server. They are essential for building integrations that react instantly to changes within a workspace, such as a new time entry being created or a project being deleted.1ConfigurationWebhooks are defined declaratively in the webhooks array of the manifest.json file. Each object in the array creates a subscription by mapping a specific webhookType (the event) to a path (the endpoint on your server that will receive the notification).2 Clockify will send an HTTP POST request to {baseUrl}{path} whenever the specified event occurs in an installed workspace.Request StructureA webhook request from Clockify has a predictable structure:Method: POSTBody: A JSON object containing the payload for the event. The shape of this payload is specific to the event type.Headers:Content-Type: application/jsonclockify-webhook-event-type: A string indicating the event that triggered the webhook (e.g., "TIME_ENTRY_CREATED").8clockify-signature: A JWT (the Webhook Signature Token) used to verify the request's authenticity.8Signature Verification: A Mandatory Security StepVerifying the signature of every incoming webhook is not optional; it is a critical security measure to prevent Cross-Site Request Forgery (CSRF) and ensure that your backend only processes legitimate requests from Clockify.The verification process is multi-layered:Standard JWT Validation: The JWT extracted from the clockify-signature header must be validated using the standard process: verify the RSA256 signature against the Clockify public key and check the iss and sub claims.8Stored Token Comparison: For an even higher level of security, the platform provides the unique authToken (JWT) for each registered webhook within the payload of the installed lifecycle event. An add-on's backend should securely store this token upon installation. Then, for each incoming webhook, it can verify that the JWT in the clockify-signature header is identical to the one stored for that specific installation and webhook type. This provides a powerful guarantee that the request is not only from Clockify but is also correctly associated with the specific workspace installation.8Sample Webhook Handler (Node.js/Express)The following code provides a basic example of an Express.js route for handling a webhook. It demonstrates the essential step of JWT validation.JavaScriptconst express = require('express');
+const jwt = require('jsonwebtoken'); // A standard JWT library
+const app = express();
+
+// The Clockify public key for JWT verification.
+// In a production application, this should be loaded from a configuration file or secret manager.
+const CLOCKIFY_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+......
+-----END PUBLIC KEY-----`;
+
+// Middleware to parse JSON bodies.
+app.use(express.json());
+
+// Webhook endpoint as defined in the manifest.
+app.post('/api/webhooks/time-entry-created', (req, res) => {
+  const signature = req.headers['clockify-signature'];
+  const eventType = req.headers['clockify-webhook-event-type'];
+  const addonKey = 'advanced-reporting-addon-key'; // Your add-on's key from the manifest.
+
+  if (!signature) {
+    console.warn('Webhook received without signature.');
+    return res.status(401).send('Missing signature.');
+  }
+
+  try {
+    // 1. Verify the JWT signature and standard claims.
+    const payload = jwt.verify(signature, CLOCKIFY_PUBLIC_KEY, {
+      algorithms:,
+      issuer: 'clockify',
+      subject: addonKey
+    });
+
+    console.log(`Received valid webhook of type '${eventType}' for workspace '${payload.workspaceId}'.`);
+
+    // 2. (Recommended) Compare the signature against the token stored during installation.
+    // const storedToken = getStoredWebhookToken(payload.workspaceId, eventType);
+    // if (signature!== storedToken) {
+    //   throw new Error('Signature does not match stored token for this installation.');
+    // }
+
+    // 3. Process the event payload.
+    const timeEntry = req.body;
+    console.log('New Time Entry:', timeEntry);
+    
+    // Acknowledge receipt of the webhook.
+    res.status(200).send('OK');
+
+  } catch (error) {
+    console.error('Invalid webhook signature or validation failed:', error.message);
+    res.status(401).send('Invalid signature.');
+  }
+});
+
+const PORT = process.env.PORT |
+
+| 3000;
+app.listen(PORT, () => console.log(`Webhook server listening on port ${PORT}`));
+8. The Publishing Pipeline: From Development to MarketplacePublishing an add-on to the CAKE.com Marketplace transforms a development project into a publicly available product. The process is structured to ensure that all add-ons meet a standard of quality, security, and user experience.PrerequisitesBefore beginning the publishing process, a developer must register for a Developer Account on the CAKE.com Marketplace. This account provides access to the developer portal where add-ons are managed.12Publishing Process OverviewDevelop and Test Locally: Build the add-on according to the architectural principles outlined in this guide. Use a tunneling service like ngrok to expose local development servers to the Clockify cloud for end-to-end testing of UI components and webhooks.Create Add-on Listing: Within the developer portal, create a new add-on entry. This step primarily involves providing the publicly accessible URL to your production-hosted manifest.json file.Private Deployment and Whitelisting: Before a public launch, an add-on can be kept in a private state. To test it in a real Clockify environment, the developer must explicitly whitelist the workspace IDs that are permitted to install and use the private add-on. This is a critical step for staging and quality assurance.7Prepare Listing Assets: A high-quality marketplace listing is essential for user adoption. The following assets must be prepared:Branding: An icon that follows Clockify's branding guidelines.6Descriptions: A short, concise description (max 140 characters) for quick summaries and a longer, more detailed description (max 1500 characters) explaining the add-on's features and benefits.13Visuals: High-resolution screenshots and/or instructional videos that accurately showcase the add-on's functionality.6Legal & Support: Live URLs for the add-on's Privacy Policy and Terms of Service, as well as a clear contact method for user support.13Submit for Review: Once the add-on is fully functional, thoroughly tested, and all listing assets are prepared, it can be submitted for review by the CAKE.com Marketplace team.Review Process: The review team will evaluate the add-on against a set of guidelines. The review focuses on functionality, security, user experience, and content. The add-on must provide clear value, be easy to set up, and be free of errors.6Publication: Upon successful review, the add-on will be approved and made publicly visible in the Marketplace, available for installation by all eligible Clockify users.14Post-Publish Updates: To release new features or bug fixes, a developer must update their add-on. If these updates involve changes to the manifest.json file (e.g., adding new scopes or components), a new version must be submitted for review.Publishing Readiness ChecklistUse this checklist to ensure all requirements are met before submitting for review.[ ] Developer Account created on CAKE.com Marketplace.[ ] manifest.json is valid against the latest schema and hosted at a stable, public HTTPS URL.[ ] All baseUrl paths are correctly configured for the production environment.[ ] Add-on functionality has been thoroughly tested in a whitelisted staging workspace.[ ] Add-on icon and visual assets adhere to product branding guidelines.6[ ] Short description (max 140 characters) is written and compelling.13[ ] Long description (max 1500 characters) is clear, detailed, and grammatically correct.13[ ] High-quality screenshots and/or a video demonstrating the add-on are prepared.[ ] A public URL for the Privacy Policy is available.[ ] A public URL for the Terms of Service is available.[ ] A clear support contact (email or URL) is defined.[ ] The add-on setup process is simple and well-documented.6[ ] The add-on is free of typos and grammatical errors.6[ ] The add-on does not contain any prohibited content (e.g., hate speech, violence).69. Reliability, Rate Limits, and Error HandlingA production-quality add-on must be robust and resilient. This involves correctly handling API rate limits and gracefully managing errors.Rate LimitsThe Clockify REST API enforces a rate limit to ensure platform stability. When using an add-on's X-Addon-Token, the limit is 50 requests per second for each add-on on a single workspace.9Handling Rate Limit ErrorsIf an add-on exceeds this limit, the API will respond with an HTTP 429 Too Many Requests status code and an error message.9 It is the add-on's responsibility to handle this response correctly. A naive implementation that immediately retries a failed request will likely fail again and may exacerbate the problem.Best Practices for ReliabilityExponential Backoff: This is the standard strategy for handling 429 responses and other transient server-side errors (5xx status codes). When a request fails, the add-on should wait for a short period before retrying. If the retry also fails, the waiting period should be increased (e.g., doubled) before the next attempt, up to a maximum number of retries. This prevents the add-on from overwhelming the API during periods of high load.Bulk Endpoints: Whenever the API provides endpoints for performing actions in bulk (e.g., creating multiple entities in a single call), they should be preferred over making many individual requests in a loop.Caching: For data that does not change frequently (e.g., user lists, project details), implement a caching layer in the add-on's backend. This can dramatically reduce the number of API calls and improve the add-on's performance.Graceful Error Handling: While the documentation does not provide a comprehensive list of all possible error codes, the add-on should be built to handle standard HTTP error responses (e.g., 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 500 Internal Server Error) in a predictable and user-friendly manner.910. Security Fortification ChecklistAs developer-hosted applications that handle potentially sensitive user data, Clockify add-ons must be built with security as a top priority. This checklist outlines essential security practices.[ ] JWT Validation: Rigorously validate every incoming JWT (User Tokens and Webhook Signatures). This includes verifying the RSA256 signature with the official public key, and checking the iss, sub, and exp claims.[ ] Secure Secret Storage: The long-lived Installation Token is a critical secret. Store it in a dedicated, encrypted secret management service such as AWS Secrets Manager, Azure Key Vault, or HashiCorp Vault. Never hardcode secrets in source code or commit them to version control.[ ] Principle of Least Privilege: In the manifest, request only the minimum set of API scopes necessary for the add-on to function. Avoid requesting broad permissions like *_WRITE if only *_READ is needed.[ ] Input Validation and Sanitization: Treat all external input as untrusted. This includes data from user forms within UI components and payloads from webhook requests. Validate and sanitize all input to prevent common vulnerabilities like SQL Injection and Cross-Site Scripting (XSS).[ ] Enforce HTTPS: Ensure that the baseUrl in the manifest uses https and that all add-on endpoints are served exclusively over HTTPS to encrypt data in transit.[ ] Content Security Policy (CSP): Implement a strict CSP via HTTP headers on all pages that render UI components. A well-configured CSP is a powerful defense against XSS attacks by restricting the sources from which scripts, styles, and other resources can be loaded.[ ] Cross-Origin Resource Sharing (CORS): If the add-on's backend API is hosted on a different origin than its UI, configure CORS headers correctly. Restrict the Access-Control-Allow-Origin header to only the necessary origins to prevent other websites from making requests to your API.[ ] PII Handling: Be acutely aware of any Personally Identifiable Information (PII) the add-on processes or stores. Ensure that its handling, storage, and retention policies comply with relevant data protection regulations like GDPR.[ ] Dependency Scanning: Regularly scan the add-on's dependencies (e.g., npm packages, Maven libraries) for known vulnerabilities and update them promptly.11. Minimal Starter Project: Code and InstructionsThis section provides a complete, minimal, and runnable starter project. It consists of a manifest, a simple web component that calls the Clockify API, and a basic webhook handler.manifest.jsonThis manifest defines a simple add-on with one sidebar component and one webhook. Save this file and host it at a public URL.JSON{
+  "schemaVersion": "1.3",
+  "key": "vanilla-js-starter-addon",
+  "name": "Vanilla JS Starter",
+  "baseUrl": "https://<your-ngrok-url>",
+  "scopes":,
+  "components":,
+  "webhooks":
+}
+index.htmlThis is the UI for the sidebar component. It includes a placeholder for user data and loads the component's JavaScript.HTML<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clockify Add-on Starter</title>
+    <style>
+        body { font-family: sans-serif; padding: 1em; }
+    </style>
+</head>
+<body>
+    <h1>Clockify Add-on Demo</h1>
+    <div id="user-info">Loading user data...</div>
+    <script src="/component.js"></script>
+</body>
+</html>
+component.jsThis vanilla JavaScript file contains the logic for the UI component. It retrieves the auth token, decodes it to get the API base URL, calls the /v1/user endpoint, and displays the user's name.JavaScript// component.js
+document.addEventListener('DOMContentLoaded', () => {
+    const userInfoDiv = document.getElementById('user-info');
+
+    try {
+        // 1. Get the User Token from the URL query parameters.
+        const token = new URLSearchParams(window.location.search).get('auth_token');
+        if (!token) {
+            throw new Error('Authentication token not found in URL.');
+        }
+
+        // 2. Decode the JWT payload to get context.
+        // NOTE: This is an insecure decode for demonstration only.
+        // A production app MUST use a library to fully validate the JWT signature.
+        const payload = JSON.parse(atob(token.split('.')));
+        const { backendUrl, workspaceId } = payload;
+
+        if (!backendUrl ||!workspaceId) {
+            throw new Error('Required claims (backendUrl, workspaceId) not found in token.');
+        }
+
+        // 3. Call the Clockify API to get the current user's information.
+        // The API endpoint for the current user is slightly different from other user endpoints.
+        fetch(`${backendUrl}/v1/user`, {
+            method: 'GET',
+            headers: {
+                'X-Addon-Token': token
+            }
+        })
+       .then(response => {
+            if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+            }
+            return response.json();
+        })
+       .then(user => {
+            // 4. Display the data in the UI.
+            userInfoDiv.textContent = `Hello, ${user.name}! Your email is ${user.email}.`;
+        })
+       .catch(error => {
+            console.error('API call failed:', error);
+            userInfoDiv.textContent = `Error fetching user data: ${error.message}`;
+        });
+
+    } catch (error) {
+        console.error('Initialization failed:', error);
+        userInfoDiv.textContent = `Error: ${error.message}`;
+    }
+});
+webhook.js (Node.js/Express)This is a minimal Node.js server using Express to receive and validate webhooks.JavaScript// webhook.js
+const express = require('express');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+const PORT = 3000;
+
+// IMPORTANT: Replace with the actual public key from Clockify's documentation.
+const CLOCKIFY_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+...PASTE OFFICIAL CLOCKIFY PUBLIC KEY HERE...
+-----END PUBLIC KEY-----`;
+
+// Middleware to parse JSON request bodies.
+app.use(express.json());
+
+// Serve static files for the UI component.
+app.use(express.static('public')); // Assumes index.html and component.js are in a 'public' directory.
+
+// Webhook receiver endpoint.
+app.post('/webhook', (req, res) => {
+    console.log('Webhook received!');
+    const signature = req.headers['clockify-signature'];
+    const addonKey = 'vanilla-js-starter-addon'; // Must match the key in manifest.json
+
+    if (!signature) {
+        return res.status(401).send('Signature missing.');
+    }
+
+    try {
+        jwt.verify(signature, CLOCKIFY_PUBLIC_KEY, {
+            algorithms:,
+            issuer: 'clockify',
+            subject: addonKey
+        });
+        console.log('Webhook signature is valid.');
+        console.log('Payload:', req.body);
+        res.status(200).send('Webhook received and verified.');
+    } catch (err) {
+        console.error('Webhook signature verification failed:', err.message);
+        res.status(401).send('Invalid signature.');
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Ensure your ngrok tunnel points to this port.');
+});
+12. Developer Experience and Local WorkflowA smooth local development workflow is crucial for productivity. Because Clockify add-ons are hosted externally, a few specific tools and processes are required to bridge the gap between a local machine and the Clockify cloud environment.Local Server SetupUI Server: A simple static file server is needed to serve the HTML, CSS, and JavaScript for the UI components. The express.static middleware in the webhook.js example above can fulfill this role, or a dedicated tool like http-server can be used.Backend Server: For handling webhooks and lifecycle events, a backend server process is required. The webhook.js example provides a basic Node.js server.Tunneling with ngrokClockify's servers are on the public internet and cannot directly access localhost. Therefore, a tunneling service is essential to expose the local development server to the internet. ngrok is a popular choice for this.Workflow:Start the local server (e.g., node webhook.js, which runs on port 3000).In a separate terminal, start ngrok to create a public tunnel to the local port:Bashngrok http 3000
+ngrok will provide a public HTTPS URL (e.g., https://random-string.ngrok.io).Update the baseUrl in the manifest.json file to this ngrok URL.Host the updated manifest.json file at a public location (e.g., using a GitHub Gist or a simple cloud storage bucket).In the CAKE.com developer portal, point the add-on configuration to the URL of the hosted manifest.Now, when Clockify loads the UI component or sends a webhook, the request will travel through the ngrok tunnel to the local server.Smoke-Test ChecklistBefore committing code or submitting for review, run through this checklist to verify core functionality:[ ] Manifest Accessibility: Is the manifest.json file hosted publicly and accessible via its URL?[ ] UI Component Loading: After installing the add-on in a test workspace, does the UI component (e.g., the sidebar link) appear correctly?[ ] Iframe Rendering: Does clicking the component link successfully load the index.html from the local server into the iframe? Check the browser's developer console for any errors (e.g., 404s, CORS issues).[ ] Token Reception: Does the component.js correctly parse the auth_token from the URL?[ ] API Call Success: Does the API call to /v1/user succeed, and is the user's data displayed correctly? Check the browser's network tab to inspect the request and response.[ ] Webhook Reception: Does triggering an event in Clockify (e.g., creating a time entry) result in a POST request to the local webhook server? The ngrok web interface (http://localhost:4040) is invaluable for inspecting incoming traffic.[ ] Webhook Validation: Does the webhook handler successfully validate the JWT signature?13. Risk Register and MitigationProactively identifying and planning for potential risks is a hallmark of robust system design. This register outlines common risks associated with Clockify add-on development and provides mitigation strategies.RiskImpactLikelihoodMitigation StrategyInstallation Token LeakageCriticalLowStore the Installation Token in a dedicated, encrypted secret management service (e.g., AWS Secrets Manager, Azure Key Vault). Never commit it to source control or expose it in client-side code. Implement strict access controls on the backend.API Rate Limit ExhaustionHighMediumImplement an exponential backoff and retry mechanism for 429 Too Many Requests and 5xx errors. Utilize bulk API endpoints where available. Implement a caching layer for frequently accessed, non-volatile data.Region/Subdomain MismatchCriticalHighNever hardcode API base URLs. The add-on must be architected to dynamically resolve all API endpoints (backendUrl, reportsUrl, etc.) by decoding the JWT provided in each context (UI component load or webhook).Webhook Request Forgery (CSRF)CriticalMediumImplement mandatory, strict JWT signature validation on every incoming webhook request. Use the official Clockify public key and verify all relevant claims (iss, sub). For enhanced security, compare the received signature against the unique webhook token stored during the installed lifecycle event.Cross-Site Scripting (XSS)HighMediumImplement a strict Content Security Policy (CSP) on all UI pages served by the add-on. Sanitize all user-provided data before rendering it in the DOM.Add-on Infrastructure DowntimeHighMediumHost the add-on's backend and frontend assets on a reputable, high-availability cloud provider. Implement comprehensive monitoring, logging, and alerting to detect and respond to outages quickly.CORS/CSP Blocks UI LoadingMediumHighCorrectly configure Cross-Origin Resource Sharing (CORS) headers on the backend API to allow requests from the Clockify origin. Ensure the CSP for UI pages does not inadvertently block necessary resources.14. Frequently Asked Questions (FAQ) and ReferencesFrequently Asked QuestionsWhy are my API calls failing with a 401 Unauthorized or 403 Forbidden error?This is almost always a token or permissions issue.Check the Token: Ensure the X-Addon-Token header is present and contains the correct, unexpired token for the context.Check the Scopes: Verify that the manifest.json file requests the necessary permission scopes for the API endpoint being called (e.g., TIME_ENTRY_READ to read time entries).Check the User's Permissions: If using a User Token, the user themselves may not have permission to perform the action in Clockify. The API correctly enforces the user's role.Why isn't my UI component loading in the iframe?Check Manifest URL: Ensure the URL to your manifest.json in the developer portal is correct and the file is publicly accessible.Check baseUrl and path: Double-check that the baseUrl in your manifest is correct (especially when using ngrok) and that the component's path points to a valid file on your server.Check Console Errors: Open the browser's developer console. Look for 404 errors (file not found), CORS errors, or CSP violations that might be blocking the iframe from loading.Check Server Logs: Check the logs of your local server to see if a request for the component's HTML was even received.How can I debug webhooks that aren't arriving?Use ngrok Inspector: The ngrok web interface, typically at http://localhost:4040, provides a real-time log of all requests coming through the tunnel. It is the best tool for confirming if Clockify is successfully sending the webhook.Verify Manifest: Ensure the webhookType and path are correctly defined in your manifest and that the add-on has been installed or updated since the changes were made.Trigger the Event: Make sure you are performing the correct action in Clockify to trigger the event you are subscribed to.Can I just use my personal X-Api-Key from my Clockify profile settings?No. While the X-Api-Key is used for personal scripts and some third-party integrations, it is not part of the CAKE.com Marketplace add-on framework. Add-ons must use the JWT-based X-Addon-Token system. This is because the JWTs carry essential context (like the backendUrl and workspace/user IDs) and are scoped specifically for the add-on's installation, which is a critical part of the security model.4ReferencesPrimary Developer Documentation: https://dev-docs.marketplace.cake.com/Clockify API Reference: https://docs.clockify.me/Marketplace Catalog: https://marketplace.cake.com/Developer Forum (Example): https://dev-forum.marketplace.cake.com/t/public-key-for-jwt-validation/31Introduction to Add-ons: https://dev-docs.marketplace.cake.com/clockify/learn/introduction.htmlAuthentication & Authorization: https://dev-docs.marketplace.cake.com/clockify/build/authentication-and-authorization.htmlManifest Overview: https://dev-docs.marketplace.cake.com/clockify/build/manifest/index.htmlEnvironments & Regions: https://dev-docs.marketplace.cake.com/clockify/build/environments-and-regions.htmlPublishing Guidelines: https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines

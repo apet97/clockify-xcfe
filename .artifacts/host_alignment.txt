@@ -1,0 +1,43 @@
+# Single Public Host Alignment Report
+
+## Expected PUBLIC_HOST
+https://9e5a48f11537.ngrok-free.app
+
+## Manifest Check
+Source: `.artifacts/manifest.json`
+```
+manifest.baseUrl = "https://9e5a48f11537.ngrok-free.app"
+```
+✅ MATCH
+
+## Version Endpoint Check
+Source: `.artifacts/version_public.txt`
+```
+/version response.baseUrl = "https://9e5a48f11537.ngrok-free.app"
+```
+✅ MATCH
+
+## Iframe Component Path
+Source: `manifest.components[0]`
+```
+type: "sidebar"
+path: "/ui/sidebar"
+label: "xCFE"
+accessLevel: "EVERYONE"
+```
+Full URL: https://9e5a48f11537.ngrok-free.app/ui/sidebar
+✅ Correctly configured
+
+## Lifecycle Webhook Paths
+Source: `manifest.lifecycle[]`
+```
+INSTALLED       → /lifecycle/installed
+STATUS_CHANGED  → /lifecycle/status
+SETTINGS_UPDATED → /lifecycle/settings
+DELETED         → /lifecycle/deleted
+```
+All endpoints tested and responding correctly.
+✅ Operational
+
+## Final Verdict
+**✅ MATCH** - All baseUrl references use single public host consistently.

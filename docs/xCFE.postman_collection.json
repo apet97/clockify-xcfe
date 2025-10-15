@@ -1,0 +1,406 @@
+{
+  "info": {
+    "name": "xCustom Field Expander API",
+    "description": "API collection for testing xCFE endpoints",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/v1",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sites/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["sites", "health"]
+            }
+          }
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sites/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["sites", "ready"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Request Magic Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/magic-link",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "magic-link"]
+            }
+          }
+        },
+        {
+          "name": "Exchange Magic Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"your-magic-token-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/exchange",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "exchange"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Formulas",
+      "item": [
+        {
+          "name": "List Formulas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/formulas",
+              "host": ["{{baseUrl}}"],
+              "path": ["formulas"]
+            }
+          }
+        },
+        {
+          "name": "Create Formula",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fieldKey\": \"Amount\",\n  \"expr\": \"ROUND(Duration.h * CF(\\\"Rate\\\"), 2)\",\n  \"priority\": 100,\n  \"onEvents\": [\"NEW_TIME_ENTRY\", \"TIME_ENTRY_UPDATED\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/formulas",
+              "host": ["{{baseUrl}}"],
+              "path": ["formulas"]
+            }
+          }
+        },
+        {
+          "name": "Update Formula",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fieldKey\": \"Amount\",\n  \"expr\": \"ROUND(Duration.h * CF(\\\"Rate\\\") * 1.2, 2)\",\n  \"priority\": 100,\n  \"onEvents\": [\"NEW_TIME_ENTRY\", \"TIME_ENTRY_UPDATED\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/formulas/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["formulas", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "formula-id-here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Formula",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/formulas/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["formulas", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "formula-id-here"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dictionaries",
+      "item": [
+        {
+          "name": "List Dictionaries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dictionaries",
+              "host": ["{{baseUrl}}"],
+              "path": ["dictionaries"]
+            }
+          }
+        },
+        {
+          "name": "Create Dictionary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fieldKey\": \"Status\",\n  \"type\": \"dropdown\",\n  \"allowedValues\": [\"Draft\", \"Review\", \"Approved\"],\n  \"mode\": \"block\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dictionaries",
+              "host": ["{{baseUrl}}"],
+              "path": ["dictionaries"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Backfill",
+      "item": [
+        {
+          "name": "Dry Run Backfill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from\": \"2024-01-01T00:00:00Z\",\n  \"to\": \"2024-01-07T23:59:59Z\",\n  \"dryRun\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/backfill",
+              "host": ["{{baseUrl}}"],
+              "path": ["backfill"]
+            }
+          }
+        },
+        {
+          "name": "Execute Backfill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from\": \"2024-01-01T00:00:00Z\",\n  \"to\": \"2024-01-07T23:59:59Z\",\n  \"dryRun\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/backfill",
+              "host": ["{{baseUrl}}"],
+              "path": ["backfill"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit & Runs",
+      "item": [
+        {
+          "name": "List Runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/runs?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["runs"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings"]
+            }
+          }
+        },
+        {
+          "name": "Update Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strict_mode\": false,\n  \"reference_months\": 3,\n  \"region\": \"euc1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Clockify Webhook (Sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Clockify-Signature",
+                "value": "sha256=your-signature-here"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"webhook-event-id\",\n  \"event\": \"TIME_ENTRY_UPDATED\",\n  \"data\": {\n    \"timeEntryId\": \"time-entry-id\",\n    \"workspaceId\": \"workspace-id\",\n    \"userId\": \"user-id\"\n  },\n  \"timestamp\": \"2024-01-01T12:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/clockify",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "clockify"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
