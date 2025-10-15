@@ -59,9 +59,12 @@ export const healthCheck: RequestHandler = async (_req, res) => {
   const dbHealth = await checkDbHealth();
   const manifest = manifestHealth();
   const runtimeOk = dbHealth.reachable || dbHealth.skipped;
+  const status = runtimeOk ? 'healthy' as const : 'degraded' as const;
 
   res.json({
     ok: runtimeOk,
+    status,
+    workspaceId: CONFIG.WORKSPACE_ID,
     manifest: manifest.reachable,
     addonKey: CONFIG.ADDON_KEY,
     baseUrl: CONFIG.BASE_URL,

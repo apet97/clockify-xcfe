@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { verifyClockifyJwt } from '../lib/jwt.js';
 import { logger } from '../lib/logger.js';
+import { CONFIG } from '../config/index.js';
 
 /**
  * GET /v1/me
@@ -17,7 +18,7 @@ export const getMe = async (req: Request, res: Response) => {
     const authToken = z.string().parse(req.query.auth_token);
 
     // Verify JWT
-    const claims = await verifyClockifyJwt(authToken, process.env.ADDON_KEY!);
+    const claims = await verifyClockifyJwt(authToken, CONFIG.ADDON_KEY);
 
     // Extract claims
     const { workspaceId, userId } = claims;
@@ -46,7 +47,7 @@ export const getMe = async (req: Request, res: Response) => {
       });
     }
 
-    if (error instanceof Error && error.message.includes('JWT verification failed')) {
+    if (error instanceof Error && (error.message.includes('JWT verification failed') || error.message.includes('Invalid JWT subject'))) {
       return res.status(401).json({
         error: 'Invalid authentication token'
       });

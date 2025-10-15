@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../providers/AuthProvider.js';
 import { apiRequest } from '../utils/api.js';
+import type { HealthStatus } from '../types/api.js';
 import type { DictionaryRule, Formula, RunRecord } from '../types/api.js';
 
 const DashboardPage: React.FC = () => {
@@ -9,7 +10,7 @@ const DashboardPage: React.FC = () => {
 
   const healthQuery = useQuery({
     queryKey: ['health'],
-    queryFn: () => apiRequest<{ status: string; workspaceId: string; timestamp: string }>(token, '/sites/health')
+    queryFn: () => apiRequest<HealthStatus>(token, '/sites/health')
   });
 
   const formulasQuery = useQuery({

@@ -436,7 +436,7 @@ export class FormulaEngine {
         continue;
       }
 
-      const validated = this.applyValidation(formula.fieldKey, value, diagnostics);
+      const validated = this.applyValidation(formula.fieldKey, value, target.value, diagnostics);
       if (!deepEqual(validated, target.value)) {
         state.set(formula.fieldKey, {
           fieldKey: formula.fieldKey,
@@ -512,7 +512,7 @@ export class FormulaEngine {
     };
   }
 
-  private applyValidation(fieldKey: string, value: unknown, diagnostics: ValidationIssue[]) {
+  private applyValidation(fieldKey: string, value: unknown, currentValue: unknown, diagnostics: ValidationIssue[]) {
     const rule = this.dictionaries.get(fieldKey);
     if (!rule) return value;
 
@@ -527,7 +527,7 @@ export class FormulaEngine {
             message: `Dropdown value ${String(value)} is not allowed for ${fieldKey}`,
             mode: rule.mode
           });
-          return value;
+          return currentValue;
         }
         if (rule.mode === 'autofix' && allowed.length) {
           diagnostics.push({
@@ -578,7 +578,7 @@ export class FormulaEngine {
             message: `Numeric value ${numeric} outside range for ${fieldKey}`,
             mode: rule.mode
           });
-          return value;
+          return currentValue;
         }
         const severity = 'warn';
         diagnostics.push({

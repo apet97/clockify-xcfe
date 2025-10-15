@@ -66,6 +66,7 @@ export type DryRunPreview = {
 
 export type HealthStatus = {
   ok: boolean;
+  status: 'healthy' | 'degraded';
   db: {
     reachable: boolean;
     schemaVersion?: string;

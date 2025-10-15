@@ -41,7 +41,7 @@ describe('Sidebar token refresh (JSDOM)', () => {
       return undefined as any;
     });
 
-    const res = { status: vi.fn().mockReturnThis(), send } as unknown as Response;
+    const res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), send } as unknown as Response;
 
     await renderSidebar(req, res, vi.fn());
   });
@@ -118,4 +118,3 @@ describe('Sidebar token refresh (JSDOM)', () => {
     expect(toast?.style.display).toBe('block');
   });
 });
-

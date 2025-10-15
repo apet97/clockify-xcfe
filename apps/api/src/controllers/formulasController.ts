@@ -22,7 +22,7 @@ export const recompute = async (req: Request, res: Response) => {
     const authToken = z.string().parse(req.query.auth_token);
 
     // Verify JWT using verifyClockifyJwt
-    const claims = await verifyClockifyJwt(authToken, process.env.ADDON_KEY!);
+    const claims = await verifyClockifyJwt(authToken, CONFIG.ADDON_KEY);
 
     // Extract claims: backendUrl, workspaceId, userId, addonId
     // Note: Clockify uses "user" field, not "userId"
@@ -73,7 +73,8 @@ export const recompute = async (req: Request, res: Response) => {
         exportType: 'JSON'
       },
       req.correlationId,
-      installationToken
+      installationToken,
+      claims.reportsUrl
     );
 
     const entries = report.timeEntries || [];
@@ -108,7 +109,9 @@ export const recompute = async (req: Request, res: Response) => {
               ]
             },
             {
-              correlationId: req.correlationId
+              correlationId: req.correlationId,
+              authToken: installationToken,
+              baseUrlOverride: apiBaseUrl
             }
           );
           
@@ -155,7 +158,7 @@ export const recompute = async (req: Request, res: Response) => {
       });
     }
 
-    if (error instanceof Error && error.message.includes('JWT verification failed')) {
+    if (error instanceof Error && (error.message.includes('JWT verification failed') || error.message.includes('Invalid JWT subject'))) {
       return res.status(401).json({
         error: 'Invalid authentication token'
       });
@@ -185,7 +188,7 @@ export const verify = async (req: Request, res: Response) => {
     }
 
     const authToken = z.string().parse(req.query.auth_token);
-    const claims = await verifyClockifyJwt(authToken, process.env.ADDON_KEY!);
+    const claims = await verifyClockifyJwt(authToken, CONFIG.ADDON_KEY);
     const { workspaceId } = claims;
 
     // Validate entryId parameter
@@ -200,8 +203,16 @@ export const verify = async (req: Request, res: Response) => {
       entryId
     }, 'Verifying time entry custom fields');
 
-    // Fetch time entry from Clockify API
-    const entry = await clockifyClient.getTimeEntry(workspaceId, entryId, req.correlationId);
+    // Load installation to obtain required token
+    const installation = await getInstallation(claims.addonId || CONFIG.ADDON_KEY, workspaceId);
+    const installationToken = installation?.installationToken;
+    if (!installationToken) {
+      return res.status(401).json({ error: 'No installation found', message: 'Add-on not properly installed for this workspace' });
+    }
+
+    // Fetch time entry from Clockify API using installation token
+    const backendUrl = (claims.backendUrl || '').replace(/\/$/, '') + '/v1';
+    const entry = await clockifyClient.getTimeEntry(workspaceId, entryId, req.correlationId, installationToken, backendUrl);
 
     // Return custom fields for verification
     res.json({
@@ -222,7 +233,7 @@ export const verify = async (req: Request, res: Response) => {
       });
     }
 
-    if (error instanceof Error && error.message.includes('JWT verification failed')) {
+    if (error instanceof Error && (error.message.includes('JWT verification failed') || error.message.includes('Invalid JWT subject'))) {
       return res.status(401).json({
         error: 'Invalid authentication token'
       });

@@ -111,14 +111,8 @@ export const getCustomFields = async (req: Request, res: Response) => {
     // Check for non-JSON upstream response
     // Developer sandbox often returns an HTML loader page; degrade gracefully
     if (error instanceof Error && (error.message.includes('Non-JSON response from Clockify') || error.message.includes('content-type'))) {
-      if (isDevSandbox) {
-        // Return empty list so UI remains usable in developer sandbox
-        return res.json([]);
-      }
-      return res.status(502).json({
-        error: 'upstream_non_json',
-        message: 'Clockify API returned non-JSON response'
-      });
+      // Return empty list so UI remains usable when upstream returns HTML loader or non-JSON
+      return res.json([]);
     }
 
     res.status(500).json({
