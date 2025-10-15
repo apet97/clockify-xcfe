@@ -10,7 +10,8 @@ const isAuthorized = (req: Request): boolean => {
   const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   const secret = headerSecret || bearer || '';
   if (!secret) return false;
-  return secret === CONFIG.ENCRYPTION_KEY;
+  const expected = CONFIG.ADMIN_SECRET || CONFIG.ENCRYPTION_KEY;
+  return secret === expected;
 };
 
 // Liveness and usage hint
@@ -19,7 +20,7 @@ router.get('/webhooks/bootstrap', (_req: Request, res: Response) => {
     ok: true,
     route: '/api/webhooks/bootstrap',
     method: 'POST',
-    auth: 'Send X-Admin-Secret or Authorization: Bearer <ENCRYPTION_KEY>'
+    auth: 'Send X-Admin-Secret or Authorization: Bearer <ADMIN_SECRET or ENCRYPTION_KEY>'
   });
 });
 
@@ -47,4 +48,3 @@ router.post('/webhooks/bootstrap', async (req: Request, res: Response) => {
 });
 
 export default router;
-

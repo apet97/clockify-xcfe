@@ -41,7 +41,7 @@ const envSchema = z.object({
   // Marketplace Add-on Configuration
   ADDON_KEY: z.string().min(1).default('xcfe-custom-field-expander'),
   ADDON_NAME: z.string().min(1).default('xCustom Field Expander'),
-  MIN_PLAN: z.enum(['FREE', 'BASIC', 'PRO', 'ENTERPRISE']).default('FREE'),
+  MIN_PLAN: z.enum(['FREE', 'BASIC', 'PRO', 'ENTERPRISE']).default('PRO'),
   RSA_PUBLIC_KEY_PEM: z
     .string()
     .min(1)
@@ -60,6 +60,8 @@ const envSchema = z.object({
     .describe('Region code from docs to override base URL when necessary'),
   ADDON_TOKEN: z.string().min(1).optional(),
   API_KEY: z.string().min(1).optional(),
+  // Optional admin secret for protected internal endpoints (fallback to ENCRYPTION_KEY)
+  ADMIN_SECRET: z.string().min(1).optional(),
   ADDON_ID: z.string().optional(),
   WEBHOOK_PUBLIC_URL: z.string().url().optional(),
   ADMIN_UI_ORIGIN: z.string().min(1).optional(),

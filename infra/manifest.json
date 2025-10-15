@@ -7,13 +7,13 @@
   "summary": "Automated formula evaluation and validation for Clockify custom fields",
   "description": "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
   "scopes": [
-    "timeEntries:read",
-    "timeEntries:write", 
-    "users:read",
-    "projects:read",
-    "tasks:read",
-    "customFields:read",
-    "webhooks:manage"
+    "TIME_ENTRY_READ",
+    "TIME_ENTRY_WRITE",
+    "USER_READ",
+    "PROJECT_READ",
+    "TASK_READ",
+    "CUSTOM_FIELDS_READ",
+    "REPORTS_READ"
   ],
   "authentication": {
     "strategies": [
@@ -30,6 +30,7 @@
   "iframeUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/ui/sidebar",
   "webhookUrl": "https://engagement-toronto-gdp-nails.trycloudflare.com/v1/webhooks/clockify",
   "regions": ["global", "euc1", "use2", "euw2", "apse2"],
+  "minimalSubscriptionPlan": "PRO",
   "features": {
     "backfill": {
       "supportsManual": true,

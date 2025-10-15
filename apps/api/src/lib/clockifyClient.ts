@@ -178,14 +178,15 @@ export class ClockifyClient {
     workspaceId: string,
     entryId: string,
     correlationId?: string,
-    authToken?: string
+    authToken?: string,
+    baseUrlOverride?: string
   ): Promise<ClockifyTimeEntry> {
     const payload = await this.request<unknown>({
       method: 'GET',
       path: `/workspaces/${workspaceId}/time-entries/${entryId}`,
       correlationId,
       authToken
-    });
+    }, baseUrlOverride);
     const parsed = clockifyTimeEntrySchema.parse(payload);
     return parsed;
   }
@@ -194,7 +195,7 @@ export class ClockifyClient {
     workspaceId: string,
     entryId: string,
     body: { customFieldValues: { customFieldId: string; value: unknown }[] },
-    options?: { correlationId?: string; ifMatch?: string; authToken?: string }
+    options?: { correlationId?: string; ifMatch?: string; authToken?: string; baseUrlOverride?: string }
   ) {
     await this.request<unknown>({
       method: 'PATCH',
@@ -203,7 +204,7 @@ export class ClockifyClient {
       correlationId: options?.correlationId,
       authToken: options?.authToken,
       query: undefined
-    });
+    }, options?.baseUrlOverride);
   }
 
   async listWebhooks(workspaceId: string, addonId: string) {
@@ -240,7 +241,8 @@ export class ClockifyClient {
       pageSize?: number;
     },
     correlationId?: string,
-    authToken?: string
+    authToken?: string,
+    baseUrlOverride?: string
   ) {
     // Build proper Detailed Report API request structure
     // Based on: CLOCKIFY_DETAILED_REPORT_API_COMPLETE_GUIDE.md
@@ -262,6 +264,31 @@ export class ClockifyClient {
 
     // Use Reports API endpoint (different from regular API)
 
+    // Derive reports base from override if provided
+    let reportsBase = this.reportsBaseUrl;
+    if (baseUrlOverride) {
+      try {
+        const url = new URL(baseUrlOverride);
+        // Replace host for standard domains; for custom domains assume same host with /reports path
+        if (url.host.includes('api.clockify.me')) {
+          reportsBase = baseUrlOverride.replace('api.clockify.me/api/v1', 'reports.api.clockify.me/v1');
+        } else if (url.host.includes('euc1-api.clockify.me')) {
+          reportsBase = baseUrlOverride.replace('euc1-api.clockify.me/api/v1', 'euc1-reports.api.clockify.me/v1');
+        } else if (url.host.includes('use2-api.clockify.me')) {
+          reportsBase = baseUrlOverride.replace('use2-api.clockify.me/api/v1', 'use2-reports.api.clockify.me/v1');
+        } else if (url.host.includes('euw2-api.clockify.me')) {
+          reportsBase = baseUrlOverride.replace('euw2-api.clockify.me/api/v1', 'euw2-reports.api.clockify.me/v1');
+        } else if (url.host.includes('apse2-api.clockify.me')) {
+          reportsBase = baseUrlOverride.replace('apse2-api.clockify.me/api/v1', 'apse2-reports.api.clockify.me/v1');
+        } else {
+          // Fallback: same origin as override, but reports path
+          reportsBase = `${url.protocol}//${url.host}/v1`;
+        }
+      } catch {
+        // ignore bad override
+      }
+    }
+
     return this.request<{
       timeEntries: Array<{ id: string; [key: string]: unknown }>;
       totals: Array<{ [key: string]: unknown }>;
@@ -271,7 +298,7 @@ export class ClockifyClient {
       body,
       correlationId,
       authToken
-    }, this.reportsBaseUrl);
+    }, reportsBase);
   }
 
   async getCustomFields(workspaceId: string, correlationId?: string, authToken?: string, baseUrl?: string) {

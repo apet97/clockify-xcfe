@@ -57,6 +57,7 @@ export interface ComputeOtSummaryInput {
   correlationId?: string;
   reportEntries?: DetailedReportEntry[];
   previousEntry?: OtReferenceEntry | null;
+  baseUrlOverride?: string;
 }
 
 const round = (value: number, decimals = 4): number => {
@@ -195,7 +196,9 @@ export const computeOtSummary = async (input: ComputeOtSummaryInput): Promise<Ot
           users: { ids: [input.timeEntry.userId] },
           exportType: 'JSON'
         },
-        input.correlationId
+        input.correlationId,
+        undefined,
+        input.baseUrlOverride
       );
       reportEntries = report.timeEntries as DetailedReportEntry[];
     } catch (error) {

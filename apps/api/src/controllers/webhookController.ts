@@ -7,7 +7,7 @@ import { fetchFormulaEngineInputs } from '../services/formulaService.js';
 import { FormulaEngine } from '../lib/formulaEngine.js';
 import { computeOtSummary } from '../lib/otRules.js';
 import { CONFIG } from '../config/index.js';
-import { getInstallationTokenFromMemory } from '../services/installMemory.js';
+import { getBackendUrlFromMemory, getInstallationTokenFromMemory } from '../services/installMemory.js';
 import { clockifyTimeEntrySchema, ClockifyWebhookEvent, billableRateUpdatedSchema } from '../types/clockify.js';
 import { recordRun } from '../services/runService.js';
 import { logger } from '../lib/logger.js';
@@ -141,15 +141,17 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
 
     const start = performance.now();
     const authToken = getInstallationTokenFromMemory(workspaceId);
+    const baseOverride = getBackendUrlFromMemory(workspaceId);
     if (!authToken && !CONFIG.API_KEY && !CONFIG.ADDON_TOKEN) {
       return res.status(401).json({ error: 'No installation token available for workspace' });
     }
-    const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId, authToken);
+    const liveEntry = await clockifyClient.getTimeEntry(workspaceId, payload.id, correlationId, authToken, baseOverride);
     const otSummary = await computeOtSummary({
       workspaceId,
       timeEntry: liveEntry,
       client: clockifyClient,
-      correlationId
+      correlationId,
+      baseUrlOverride: baseOverride
     });
     const beforeHash = hashCustomFieldValues((liveEntry.customFieldValues ?? []).map(cf => ({ 
       customFieldId: cf.customFieldId, 
@@ -191,7 +193,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
     const fingerprint = createHash('sha256').update(JSON.stringify(diff)).digest('hex');
     const fingerprintKey = buildFingerprintKey(workspaceId, liveEntry.id);
 
-    const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId, authToken);
+    const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId, authToken, baseOverride);
     const latestHash = hashCustomFieldValues((latest.customFieldValues ?? []).map(cf => ({ 
       customFieldId: cf.customFieldId, 
       value: cf.value ?? null 
@@ -230,7 +232,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       {
         customFieldValues: updates.map((item) => ({ customFieldId: item.customFieldId, value: item.value }))
       },
-      { correlationId, authToken }
+      { correlationId, authToken, baseUrlOverride: baseOverride }
     );
     const duration = Math.round(performance.now() - start);
     rememberFingerprint(fingerprintKey, fingerprint);
