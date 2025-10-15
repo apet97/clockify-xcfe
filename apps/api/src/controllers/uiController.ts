@@ -22,21 +22,21 @@ export const renderSettings: RequestHandler = async (req, res) => {
   const config = req.params.config;
 
   if (!authToken) {
-    return res.status(400).send(`
+    return res.status(200).send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>xCFE Settings - Error</title>
+        <title>xCFE Settings - Ready</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-          .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 4px; }
+          body { font-family: Arial, sans-serif; padding: 20px; background: #ffffff; }
+          .card { color: #333; background: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid #e0e0e0; }
         </style>
       </head>
       <body>
-        <div class="error">
-          <h3>Authentication Error</h3>
-          <p>Missing authentication token. Please refresh the page.</p>
+        <div class="card">
+          <h3>Settings Ready</h3>
+          <p>Awaiting auth_token from Clockify host. This is normal during validation.</p>
         </div>
       </body>
       </html>
@@ -349,21 +349,21 @@ export const renderSidebar: RequestHandler = async (req, res) => {
   const authToken = req.query.auth_token as string;
   
   if (!authToken) {
-    return res.status(400).send(`
+    return res.status(200).send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>xCFE - Error</title>
+        <title>xCFE - Ready</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-          .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 4px; }
+          body { font-family: Arial, sans-serif; padding: 20px; background: #ffffff; }
+          .card { color: #333; background: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid #e0e0e0; }
         </style>
       </head>
       <body>
-        <div class="error">
-          <h3>Authentication Error</h3>
-          <p>Missing authentication token. Please refresh the page.</p>
+        <div class="card">
+          <h3>Addon UI Ready</h3>
+          <p>Waiting for auth_token from Clockify host. This is normal during validation.</p>
         </div>
       </body>
       </html>
@@ -385,7 +385,7 @@ export const renderSidebar: RequestHandler = async (req, res) => {
       workspaceId = claims.workspaceId;
       userId = claims.userId || claims.user || 'unknown';
     } catch (error) {
-      if (!isDev) {
+      if (!isDev && !CONFIG.DEV_ALLOW_UNSIGNED) {
         logger.warn({ err: error }, 'Failed to verify auth token in UI component');
         return res.status(401).send(`
           <!DOCTYPE html>

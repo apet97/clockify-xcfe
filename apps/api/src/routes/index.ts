@@ -11,6 +11,7 @@ import proxyRoutes from './proxy.js';
 import debugRoutes from './debug.js';
 import meRoutes from './me.js';
 import cfRoutes from './cf.js';
+import manifestRoutes from './manifest.js';
 
 const router: Router = Router();
 
@@ -26,5 +27,6 @@ router.use('/proxy', proxyRoutes);
 router.use('/debug', debugRoutes);
 router.use('/me', meRoutes);
 router.use('/cf', cfRoutes);
+router.use('/api/manifest', manifestRoutes);
 
 export default router;

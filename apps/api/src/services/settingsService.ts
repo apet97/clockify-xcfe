@@ -83,7 +83,8 @@ export const updateWorkspaceSettings = async (
     return {
       workspace_id: workspaceId,
       ...DEFAULT_SETTINGS,
-      ...validated
+      ...validated,
+      formulas: validated.formulas ? validated.formulas.filter(f => f.targetId && f.expr) as Array<{ targetId: string; expr: string }> : undefined
     };
   }
 

@@ -1,6 +1,22 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+// Normalize environment variables: trim whitespace/newlines commonly introduced by CLI piping
+Object.keys(process.env).forEach(key => {
+  const val = process.env[key];
+  if (typeof val === 'string') {
+    process.env[key] = val.trim();
+  }
+});
+
+// Vercel provides VERCEL_URL without protocol; promote it to BASE_URL if unset
+if ((!process.env.BASE_URL || process.env.BASE_URL.trim() === '') && process.env.VERCEL_URL) {
+  const normalized = process.env.VERCEL_URL.startsWith('http')
+    ? process.env.VERCEL_URL
+    : `https://${process.env.VERCEL_URL}`;
+  process.env.BASE_URL = normalized.replace(/\/$/, '');
+}
+
 if (process.env.BASE_URL?.trim() === '') {
   delete process.env.BASE_URL;
 }
@@ -48,7 +64,8 @@ const envSchema = z.object({
   WEBHOOK_PUBLIC_URL: z.string().url().optional(),
   ADMIN_UI_ORIGIN: z.string().min(1).optional(),
   WORKSPACE_ID: z.string().min(1).default('dev-workspace'),
-  DATABASE_URL: z.string().min(1),
+  // Allow omitting DATABASE_URL when SKIP_DATABASE_CHECKS=true (e.g., addon-only deployments)
+  DATABASE_URL: z.string().min(1).optional(),
   ENCRYPTION_KEY: encryptionKeySchema,
   JWT_AUDIENCE: z.string().min(1).default('xcfe-admin-ui'),
   JWT_ISSUER: z.string().min(1).default('xcfe'),
@@ -66,6 +83,15 @@ const envSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['RSA_PUBLIC_KEY_PEM'],
       message: 'RSA_PUBLIC_KEY_PEM must be provided unless DEV_ALLOW_UNSIGNED=true'
+    });
+  }
+
+  // Enforce DATABASE_URL only when DB checks are enabled
+  if (!env.SKIP_DATABASE_CHECKS && (!env.DATABASE_URL || env.DATABASE_URL.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DATABASE_URL'],
+      message: 'DATABASE_URL is required unless SKIP_DATABASE_CHECKS=true'
     });
   }
 

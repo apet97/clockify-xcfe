@@ -38,6 +38,10 @@ export const createApp = (): express.Express => {
   const ORIGINS = CONFIG.ADMIN_UI_ORIGIN
     ? CONFIG.ADMIN_UI_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
     : [];
+  // Always allow Developer Portal for validation flows
+  if (!ORIGINS.includes('https://developer.clockify.me')) {
+    ORIGINS.push('https://developer.clockify.me');
+  }
   const corsCfg = {
     origin: (origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => {
       if (!origin) return cb(null, true); // curl or same-origin
@@ -61,6 +65,21 @@ export const createApp = (): express.Express => {
     })
   );
 
+  const assetsPath = path.resolve(__dirname, '../../public/assets');
+  app.use('/assets', express.static(assetsPath, { maxAge: '31536000', etag: true }));
+
+  // Ensure icon is always available even if static files are not bundled
+  app.get('/assets/icon.svg', (_req, res) => {
+    res.type('image/svg+xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1976d2"/><stop offset="100%" stop-color="#42a5f5"/></linearGradient></defs>` +
+      `<rect rx="20" ry="20" width="96" height="96" fill="url(#g)"/>` +
+      `<text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#ffffff">x</text>` +
+      `</svg>`
+    );
+  });
+
   // Version endpoint for cache-bust verification
   app.get('/version', (req, res) => {
     res.json({
@@ -69,6 +88,14 @@ export const createApp = (): express.Express => {
       baseUrl: CONFIG.BASE_URL,
       pid: process.pid
     });
+  });
+
+  // Top-level health and readiness probes (some validators expect these at root)
+  app.get('/health', (_req, res) => {
+    res.json({ ok: true, status: 'healthy' });
+  });
+  app.get('/ready', (_req, res) => {
+    res.json({ ready: true });
   });
 
   app.get('/', (req, res) => {
@@ -91,6 +118,12 @@ export const createApp = (): express.Express => {
   // Clockify add-on routes
   app.use('/manifest', manifestRoutes);
   app.use('/manifest.json', manifestRoutes);
+  // Also expose under /api for validators that probe this path
+  app.use('/api/manifest', manifestRoutes);
+  app.use('/api/manifest.json', manifestRoutes);
+  // And common well-known locations
+  app.use('/.well-known/manifest.json', manifestRoutes);
+  app.use('/.well-known/clockify/manifest.json', manifestRoutes);
   app.use('/api/lifecycle', lifecycleRoutes);
   app.use('/api/webhooks', webhookRoutes);
   app.use('/ui', uiRoutes);

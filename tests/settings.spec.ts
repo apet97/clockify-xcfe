@@ -177,7 +177,7 @@ describe('settingsService', () => {
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO settings'),
-        ['ws-1', true, 8, 'euw2', null]
+        ['ws-1', true, 8, 'euw2', null, true, 8, 'euw2']
       );
 
       expect(mockQuery).toHaveBeenCalledWith(

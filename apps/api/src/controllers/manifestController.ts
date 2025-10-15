@@ -2,84 +2,92 @@ import type { RequestHandler } from 'express';
 import { CONFIG } from '../config/index.js';
 
 export const getManifest: RequestHandler = (_req, res) => {
+  // Legacy/tabs format expected by current schema (stringified JSON)
+  const structuredSettings = {
+    tabs: [
+      {
+        id: 'automation',
+        name: 'Automation',
+        description: 'Control how formulas run when Clockify events are received.',
+        groups: [
+          {
+            id: 'runtime',
+            name: 'Runtime',
+            fields: [
+              {
+                id: 'enableAutoEvaluation',
+                type: 'CHECKBOX',
+                label: 'Enable automatic evaluation',
+                description: 'Run formulas automatically for incoming Clockify events.',
+                required: false,
+                defaultValue: 'true'
+              },
+              {
+                id: 'evaluationDelaySeconds',
+                type: 'TXT',
+                label: 'Evaluation delay (seconds)',
+                description: 'Optional delay before formulas execute to allow Clockify processing.',
+                required: false,
+                defaultValue: '5'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
   const manifest = {
     schemaVersion: "1.3",
-    key: "xcfe-custom-field-expander",
-    name: "xCustom Field Expander",
+    key: CONFIG.ADDON_KEY,
+    name: CONFIG.ADDON_NAME,
     baseUrl: CONFIG.BASE_URL,
     description: "Automated formula evaluation and validation for Clockify custom fields",
-    iconPath: "/assets/icon.png",
-    requiredPlan: "FREE",
+    iconPath: "/assets/icon.svg",
+    minimalSubscriptionPlan: CONFIG.MIN_PLAN,
     scopes: [
       "TIME_ENTRY_READ",
       "TIME_ENTRY_WRITE",
       "USER_READ",
       "PROJECT_READ",
       "TASK_READ",
-      "CUSTOM_FIELD_READ"
+      "CUSTOM_FIELDS_READ"
     ],
     components: [
       {
-        location: "SIDEBAR",
-        access: "EVERYONE",
+        type: "sidebar",
+        accessLevel: "EVERYONE",
         path: "/ui/sidebar",
         label: "Formula Manager"
-      },
-      {
-        location: "PROJECT_OVERVIEW",
-        access: "EVERYONE",
-        path: "/ui/project-tab",
-        label: "Formulas"
       }
     ],
-    settings: {
-      type: "STRUCTURED",
-      path: "/api/lifecycle/settings-updated",
-      properties: [
-        {
-          id: "enableAutoEvaluation",
-          name: "Enable Auto Evaluation",
-          type: "CHECKBOX",
-          value: true,
-          accessLevel: "ADMINS"
-        },
-        {
-          id: "evaluationDelay",
-          name: "Evaluation Delay (seconds)",
-          type: "NUMBER",
-          value: 5,
-          accessLevel: "ADMINS"
-        },
-        {
-          id: "maxFormulasPerWorkspace",
-          name: "Max Formulas Per Workspace",
-          type: "NUMBER",
-          value: 50,
-          accessLevel: "ADMINS"
-        }
-      ]
-    },
-    lifecycle: {
-      installed: "/api/lifecycle/installed",
-      updated: "/api/lifecycle/updated",
-      uninstalled: "/api/lifecycle/uninstalled",
-      statusChanged: "/api/lifecycle/status-changed"
-    },
+    settings: JSON.stringify(structuredSettings),
+    lifecycle: [
+      { type: "INSTALLED", path: "/api/lifecycle/installed" },
+      { type: "STATUS_CHANGED", path: "/api/lifecycle/status-changed" },
+      { type: "SETTINGS_UPDATED", path: "/api/lifecycle/settings-updated" },
+      { type: "DELETED", path: "/api/lifecycle/uninstalled" }
+    ],
     webhooks: [
       {
-        webhookType: "TIME_ENTRY_CREATED",
+        event: "NEW_TIME_ENTRY",
         path: "/api/webhooks/time-entry-created"
       },
       {
-        webhookType: "TIME_ENTRY_UPDATED",
+        event: "TIME_ENTRY_UPDATED",
         path: "/api/webhooks/time-entry-updated"
       },
       {
-        webhookType: "TIME_ENTRY_DELETED",
+        event: "TIME_ENTRY_DELETED",
         path: "/api/webhooks/time-entry-deleted"
       }
     ]
   };
 
-  res.json(manifest);
+  // Explicitly disable caching for manifest.json to avoid validator caches
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Access-Control-Allow-Origin', '*');
+  res.type('application/json').json(manifest);
 };

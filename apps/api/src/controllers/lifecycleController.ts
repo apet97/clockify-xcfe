@@ -20,7 +20,7 @@ const verifyLifecycleToken = async (token: string) => {
 };
 
 const getLifecycleClaims = async (req: any) => {
-  const token = req.headers['x-addon-lifecycle-token'] as string;
+  const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
   
   // Allow bypassing token verification in development mode
   if (CONFIG.DEV_ALLOW_UNSIGNED && !token) {

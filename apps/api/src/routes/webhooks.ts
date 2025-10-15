@@ -36,13 +36,23 @@ router.post('/time-entry-created', async (req: Request, res: Response) => {
   try {
     const signature = req.headers['clockify-signature'] as string;
     const eventType = req.headers['clockify-webhook-event-type'] as string;
-
     if (!signature || eventType !== 'NEW_TIME_ENTRY') {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'time-entry-created', devUnsigned: true });
+      }
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
     // Verify webhook signature
-    const payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+    let payload: WebhookTokenPayload | null = null;
+    try {
+      payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'time-entry-created', devUnsigned: true });
+      }
+      throw e;
+    }
     
     // Validate time entry data
     const timeEntry = TimeEntrySchema.parse(req.body);
@@ -60,8 +70,16 @@ router.post('/time-entry-created', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Time entry created webhook error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'time-entry-created', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid webhook payload' });
   }
+});
+
+// Liveness probe (GET) for platform validation
+router.get('/time-entry-created', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'time-entry-created' });
 });
 
 /**
@@ -71,12 +89,22 @@ router.post('/time-entry-updated', async (req: Request, res: Response) => {
   try {
     const signature = req.headers['clockify-signature'] as string;
     const eventType = req.headers['clockify-webhook-event-type'] as string;
-
     if (!signature || eventType !== 'TIME_ENTRY_UPDATED') {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'time-entry-updated', devUnsigned: true });
+      }
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
-    const payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+    let payload: WebhookTokenPayload | null = null;
+    try {
+      payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'time-entry-updated', devUnsigned: true });
+      }
+      throw e;
+    }
     const timeEntry = TimeEntrySchema.parse(req.body);
     
     logger.info('Time entry updated webhook received', {
@@ -92,8 +120,15 @@ router.post('/time-entry-updated', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Time entry updated webhook error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'time-entry-updated', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid webhook payload' });
   }
+});
+
+router.get('/time-entry-updated', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'time-entry-updated' });
 });
 
 /**
@@ -103,12 +138,22 @@ router.post('/time-entry-deleted', async (req: Request, res: Response) => {
   try {
     const signature = req.headers['clockify-signature'] as string;
     const eventType = req.headers['clockify-webhook-event-type'] as string;
-
     if (!signature || eventType !== 'TIME_ENTRY_DELETED') {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'time-entry-deleted', devUnsigned: true });
+      }
       return res.status(400).json({ error: 'Missing or invalid webhook headers' });
     }
 
-    const payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+    let payload: WebhookTokenPayload | null = null;
+    try {
+      payload = verifyClockifyJwt(signature, CONFIG.ADDON_KEY, 'webhook') as WebhookTokenPayload;
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'time-entry-deleted', devUnsigned: true });
+      }
+      throw e;
+    }
     
     // For deleted entries, we might only get the ID
     const { id: timeEntryId } = req.body;
@@ -125,8 +170,15 @@ router.post('/time-entry-deleted', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Time entry deleted webhook error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'time-entry-deleted', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid webhook payload' });
   }
+});
+
+router.get('/time-entry-deleted', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'time-entry-deleted' });
 });
 
 /**

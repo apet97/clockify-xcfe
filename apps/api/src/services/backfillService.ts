@@ -10,7 +10,7 @@ import { recordRun } from './runService.js';
 import { logger } from '../lib/logger.js';
 
 export type BackfillParams = {
-  from: string;
+  from?: string;
   to: string;
   userId?: string;
   dryRun?: boolean;
@@ -235,7 +235,11 @@ export const runBackfill = async (params: BackfillParams): Promise<BackfillResul
     const engine = new FormulaEngine(dictionaries);
 
     // Parse date range and split into daily windows
-    const startDate = new Date(params.from);
+    // Use default from date (30 days ago) if not provided
+    const defaultFromDate = new Date();
+    defaultFromDate.setDate(defaultFromDate.getDate() - 30);
+    
+    const startDate = params.from ? new Date(params.from) : defaultFromDate;
     const endDate = new Date(params.to);
     
     // Validate date range constraints

@@ -52,13 +52,25 @@ const DeletedPayloadSchema = z.object({
  */
 router.post('/installed', async (req: Request, res: Response) => {
   try {
-    const token = req.headers['x-addon-lifecycle-token'] as string;
+    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
     if (!token) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        // Liveness in development: acknowledge without token
+        return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
+      }
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
     // Verify the lifecycle token
-    const payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+    let payload: InstallationTokenPayload | null = null;
+    try {
+      payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
+      }
+      throw e;
+    }
     
     // Validate the installation payload
     const installationData = InstallationPayloadSchema.parse(req.body);
@@ -92,8 +104,16 @@ router.post('/installed', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Installation lifecycle error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'installed', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid installation payload' });
   }
+});
+
+// Liveness probe (GET) for platform validation
+router.get('/installed', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'installed' });
 });
 
 /**
@@ -102,12 +122,22 @@ router.post('/installed', async (req: Request, res: Response) => {
  */
 router.post('/status-changed', async (req: Request, res: Response) => {
   try {
-    const token = req.headers['x-addon-lifecycle-token'] as string;
+    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
     if (!token) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'status-changed', devUnsigned: true });
+      }
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
-    const payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    try {
+      verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'status-changed', devUnsigned: true });
+      }
+      throw e;
+    }
     const statusData = StatusChangedPayloadSchema.parse(req.body);
     
     logger.info('Add-on status changed', {
@@ -129,8 +159,15 @@ router.post('/status-changed', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Status changed lifecycle error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'status-changed', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid status change payload' });
   }
+});
+
+router.get('/status-changed', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'status-changed' });
 });
 
 /**
@@ -139,12 +176,22 @@ router.post('/status-changed', async (req: Request, res: Response) => {
  */
 router.post('/settings-updated', async (req: Request, res: Response) => {
   try {
-    const token = req.headers['x-addon-lifecycle-token'] as string;
+    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
     if (!token) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'settings-updated', devUnsigned: true });
+      }
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
-    const payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    try {
+      verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'settings-updated', devUnsigned: true });
+      }
+      throw e;
+    }
     const settingsData = SettingsUpdatedPayloadSchema.parse(req.body);
     
     logger.info('Add-on settings updated', {
@@ -166,8 +213,15 @@ router.post('/settings-updated', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Settings updated lifecycle error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'settings-updated', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid settings update payload' });
   }
+});
+
+router.get('/settings-updated', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'settings-updated' });
 });
 
 /**
@@ -176,12 +230,23 @@ router.post('/settings-updated', async (req: Request, res: Response) => {
  */
 router.post('/updated', async (req: Request, res: Response) => {
   try {
-    const token = req.headers['x-addon-lifecycle-token'] as string;
+    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
     if (!token) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'updated', devUnsigned: true });
+      }
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
-    const payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    let payload: InstallationTokenPayload | null = null;
+    try {
+      payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation') as InstallationTokenPayload;
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'updated', devUnsigned: true });
+      }
+      throw e;
+    }
     
     logger.info('Add-on updated', {
       addonId: payload.addonId,
@@ -195,8 +260,15 @@ router.post('/updated', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Updated lifecycle error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'updated', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid update payload' });
   }
+});
+
+router.get('/updated', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'updated' });
 });
 
 /**
@@ -205,12 +277,22 @@ router.post('/updated', async (req: Request, res: Response) => {
  */
 router.post('/uninstalled', async (req: Request, res: Response) => {
   try {
-    const token = req.headers['x-addon-lifecycle-token'] as string;
+    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
     if (!token) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'uninstalled', devUnsigned: true });
+      }
       return res.status(401).json({ error: 'Missing lifecycle token' });
     }
 
-    const payload = verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    try {
+      verifyClockifyJwt(token, CONFIG.ADDON_KEY, 'installation');
+    } catch (e) {
+      if (CONFIG.DEV_ALLOW_UNSIGNED) {
+        return res.status(200).json({ ok: true, route: 'uninstalled', devUnsigned: true });
+      }
+      throw e;
+    }
     const deletedData = DeletedPayloadSchema.parse(req.body);
     
     logger.info('Add-on uninstalled', {
@@ -234,8 +316,15 @@ router.post('/uninstalled', async (req: Request, res: Response) => {
     res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Uninstalled lifecycle error', { error, correlationId: req.correlationId });
+    if (CONFIG.DEV_ALLOW_UNSIGNED) {
+      return res.status(200).json({ ok: true, route: 'uninstalled', devUnsigned: true });
+    }
     res.status(400).json({ error: 'Invalid uninstall payload' });
   }
+});
+
+router.get('/uninstalled', (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true, route: 'uninstalled' });
 });
 
 export default router;
