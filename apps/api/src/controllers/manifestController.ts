@@ -2,41 +2,6 @@ import type { RequestHandler } from 'express';
 import { CONFIG } from '../config/index.js';
 
 export const getManifest: RequestHandler = (_req, res) => {
-  // Legacy/tabs format expected by current schema (stringified JSON)
-  const structuredSettings = {
-    tabs: [
-      {
-        id: 'automation',
-        name: 'Automation',
-        description: 'Control how formulas run when Clockify events are received.',
-        groups: [
-          {
-            id: 'runtime',
-            name: 'Runtime',
-            fields: [
-              {
-                id: 'enableAutoEvaluation',
-                type: 'CHECKBOX',
-                label: 'Enable automatic evaluation',
-                description: 'Run formulas automatically for incoming Clockify events.',
-                required: false,
-                defaultValue: 'true'
-              },
-              {
-                id: 'evaluationDelaySeconds',
-                type: 'TXT',
-                label: 'Evaluation delay (seconds)',
-                description: 'Optional delay before formulas execute to allow Clockify processing.',
-                required: false,
-                defaultValue: '5'
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  };
-
   const manifest = {
     schemaVersion: '1.3',
     key: CONFIG.ADDON_KEY,
@@ -46,14 +11,15 @@ export const getManifest: RequestHandler = (_req, res) => {
       'xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries.',
     iconPath: '/assets/icon.svg',
     minimalSubscriptionPlan: CONFIG.MIN_PLAN,
-    // Scopes aligned to schema enumeration (upper snake case)
+    // Scopes per official enum (upper snake case)
     scopes: [
       'TIME_ENTRY_READ',
       'TIME_ENTRY_WRITE',
       'USER_READ',
       'PROJECT_READ',
       'TASK_READ',
-      'CUSTOM_FIELDS_READ'
+      'CUSTOM_FIELDS_READ',
+      'REPORTS_READ'
     ],
     components: [
       {
@@ -63,7 +29,8 @@ export const getManifest: RequestHandler = (_req, res) => {
         label: 'Formula Manager'
       }
     ],
-    settings: JSON.stringify(structuredSettings),
+    // Serve settings UI from our backend to align with schema's selfHostedSettings
+    settings: '/ui/settings',
     lifecycle: [
       { type: 'INSTALLED', path: '/api/lifecycle/installed' },
       { type: 'STATUS_CHANGED', path: '/api/lifecycle/status-changed' },
@@ -73,7 +40,9 @@ export const getManifest: RequestHandler = (_req, res) => {
     webhooks: [
       { event: 'NEW_TIME_ENTRY', path: '/v1/webhooks/clockify' },
       { event: 'TIME_ENTRY_UPDATED', path: '/v1/webhooks/clockify' },
-      { event: 'TIME_ENTRY_DELETED', path: '/v1/webhooks/clockify' }
+      { event: 'TIME_ENTRY_DELETED', path: '/v1/webhooks/clockify' },
+      { event: 'NEW_TIMER_STARTED', path: '/v1/webhooks/clockify' },
+      { event: 'BILLABLE_RATE_UPDATED', path: '/v1/webhooks/clockify' }
     ]
   };
 
