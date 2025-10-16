@@ -10,7 +10,7 @@
  * All Clockify API calls from the add-on must include X-Addon-Token header.
  */
 
-import { jwtVerify, decodeJwt, type JWTPayload } from 'jose';
+import { jwtVerify, decodeJwt, importSPKI, type JWTPayload } from 'jose';
 import { CONFIG } from '../config/index.js';
 import { logger } from './logger.js';
 
@@ -65,35 +65,31 @@ export async function verifyAddonToken(token: string): Promise<ClockifyAddonClai
     throw new Error('No token provided');
   }
 
-  // Get public key from config
-  const publicKeyPEM = CONFIG.RSA_PUBLIC_KEY_PEM;
-
   try {
-    // In developer environment, allow decode-only fallback for tokens pointing to developer.clockify.me
+    // Inspect token to detect developer env
     const decoded = parseClaims(token);
     const devHost = (() => { try { return new URL(decoded.backendUrl).host; } catch { return ''; } })();
     const isDevEnvToken = /(^|\.)developer\.clockify\.me$/.test(devHost);
 
-    if (!publicKeyPEM && isDevEnvToken) {
-      // Accept decoded claims without signature verification in developer env
+    // If no key configured and developer token, accept decoded claims
+    if (!CONFIG.RSA_PUBLIC_KEY_PEM && isDevEnvToken) {
       return decoded;
     }
 
-    if (!publicKeyPEM) {
+    if (!CONFIG.RSA_PUBLIC_KEY_PEM) {
       throw new Error('RSA_PUBLIC_KEY_PEM not configured');
     }
 
-    // Import the public key (SPKI)
-    const publicKey = await (globalThis.crypto ?? (await import('node:crypto')).webcrypto).subtle.importKey(
-      'spki',
-      pemToArrayBuffer(publicKeyPEM),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
+    // Normalize PEM: support both full PEM and bare key body
+    const pem = CONFIG.RSA_PUBLIC_KEY_PEM.includes('BEGIN PUBLIC KEY')
+      ? CONFIG.RSA_PUBLIC_KEY_PEM
+      : `-----BEGIN PUBLIC KEY-----\n${CONFIG.RSA_PUBLIC_KEY_PEM}\n-----END PUBLIC KEY-----`;
+
+    // Import SPKI via jose
+    const key = await importSPKI(pem, 'RS256');
 
     // Verify the JWT
-    const { payload } = await jwtVerify(token, publicKey, {
+    const { payload } = await jwtVerify(token, key, {
       algorithms: ['RS256']
     });
 
@@ -162,7 +158,7 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
     .replace(/\s/g, '');
 
   // Base64 decode
-  const binaryString = atob(pemContent);
+  const binaryString = Buffer.from(pemContent, 'base64').toString('binary');
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
