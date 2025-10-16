@@ -2,7 +2,7 @@
   "schemaVersion": "1.3",
   "key": "xcfe-custom-field-expander",
   "name": "xCustom Field Expander",
-  "baseUrl": "https://your-vercel-domain.vercel.app",
+  "baseUrl": "https://clockify-xcfe.vercel.app",
   "description": "Automated formula evaluation and validation for Clockify custom fields. Computes amounts, categorizes entries, validates data integrity, and maintains consistent custom field values across your workspace using mathematical formulas, conditional logic, and overtime rules.",
   "subscriptionPlan": "PRO",
   "scopes": [
