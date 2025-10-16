@@ -1,122 +1,60 @@
 import type { Request, Response } from 'express';
-import { z } from 'zod';
-import { verifyClockifyJwt } from '../lib/jwt.js';
-import { clockifyClient } from '../lib/clockifyClient.js';
 import { logger } from '../lib/logger.js';
-import { getInstallation } from '../services/installationService.js';
-import { getInstallationTokenFromMemory } from '../services/installMemory.js';
-import { CONFIG } from '../config/index.js';
+import { resolveAddonContext } from '../lib/clockifyAuth.js';
 
 /**
  * GET /v1/cf/fields
- * Lists custom fields for the workspace
+ * Proxy to Clockify custom fields endpoint
  */
 export const getCustomFields = async (req: Request, res: Response) => {
   try {
-    // Validate iframe JWT FIRST
-    if (!req.query.auth_token) {
-      return res.status(401).json({ error: 'invalid_iframe_token', message: 'Missing auth_token query parameter' });
-    }
+    const { token, backendUrl, workspaceId } = await resolveAddonContext(req);
+    const base = backendUrl.endsWith('/') ? backendUrl : `${backendUrl}/`;
+    const url = new URL(`v1/workspaces/${workspaceId}/custom-fields`, base).toString();
 
-    const authToken = z.string().parse(req.query.auth_token);
+    logger.debug({ workspaceId }, 'Fetching custom fields from Clockify');
 
-    // Verify JWT (skip strict subject check to support dev sandbox tokens)
-    const claims = await verifyClockifyJwt(authToken);
-
-    // Extract claims INCLUDING backendUrl for developer sandbox support
-    const { workspaceId, addonId, backendUrl } = claims;
-
-    logger.debug({ workspaceId, addonId, backendUrl }, 'Fetching custom fields');
-
-    // Fetch installation token from database
-    let installationToken: string | undefined;
-    const installation = await getInstallation(addonId || CONFIG.ADDON_KEY, workspaceId);
-    installationToken = installation?.installationToken;
-    if (!installationToken) {
-      installationToken = getInstallationTokenFromMemory(workspaceId);
-    }
-    // Developer sandbox: as a last resort, use the iframe JWT directly
-    if (!installationToken) {
-      try {
-        const host = new URL(backendUrl || '').host;
-        const isDev = /(^|\.)developer\.clockify\.me$/.test(host);
-        if (isDev) {
-          installationToken = authToken;
-        }
-      } catch {}
-    }
-
-    if (!installationToken) {
-      logger.warn({ workspaceId, addonId }, 'No installation token found for workspace');
-      return res.status(401).json({
-        error: 'No installation found',
-        message: 'Add-on not properly installed for this workspace'
-      });
-    }
-
-    // Build API URL from JWT backendUrl; developer sandbox uses /api (no /v1)
-    let apiBaseUrl: string | undefined = undefined;
-    let isDevSandbox = false;
-    if (backendUrl) {
-      const trimmed = backendUrl.replace(/\/$/, '');
-      try {
-        const host = new URL(trimmed).host;
-        isDevSandbox = /(^|\.)developer\.clockify\.me$/.test(host);
-        apiBaseUrl = isDevSandbox ? trimmed : (trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`);
-      } catch {
-        apiBaseUrl = `${trimmed}/v1`;
+    const response = await fetch(url, {
+      headers: {
+        'X-Addon-Token': token,
+        'Accept': 'application/json',
+        'User-Agent': 'xCFE/1.0.0'
       }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      const snippet = text.slice(0, 200);
+      logger.warn({ workspaceId, status: response.status, detail: snippet }, 'Clockify custom fields request failed');
+      return res.status(response.status).json({ error: 'UPSTREAM_ERROR', status: response.status, detail: snippet });
     }
 
-    // Fetch custom fields from Clockify API
-    const fields = await clockifyClient.getCustomFields(workspaceId, req.correlationId, installationToken, apiBaseUrl);
-
-    // Handle undefined response
-    if (!fields || !Array.isArray(fields)) {
-      logger.warn({ workspaceId, fields }, 'Custom fields response is not valid');
-      return res.status(502).json({
-        error: 'Invalid response from Clockify API',
-        message: 'Custom fields could not be retrieved'
-      });
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      const text = await response.text();
+      return res.status(200).json({ ok: true, detail: text });
     }
 
-    // Filter and map to simple format
-    const filtered = fields.map((field: any) => ({
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      return res.status(502).json({ error: 'Invalid response from Clockify', detail: 'Custom fields response must be an array' });
+    }
+
+    const mapped = data.map((field: any) => ({
       id: field.id,
       name: field.name,
-      type: field.type || 'TEXT'
+      type: field.type ?? 'TEXT'
     }));
 
-    res.json(filtered);
-
+    return res.json(mapped);
   } catch (error) {
-    logger.error({
-      error: error instanceof Error ? error.message : 'Unknown error',
-      correlationId: req.correlationId
-    }, 'CF fields fetch failed');
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error({ error: message }, 'Failed to fetch custom fields');
 
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        error: 'Invalid request parameters',
-        details: error.errors
-      });
+    if (message.includes('workspaceId/user must be 24')) {
+      return res.status(400).json({ error: 'BadRequest', detail: message });
     }
 
-    if (error instanceof Error && error.message.includes('JWT verification failed')) {
-      return res.status(401).json({
-        error: 'Invalid authentication token'
-      });
-    }
-
-    // Check for non-JSON upstream response
-    // Developer sandbox often returns an HTML loader page; degrade gracefully
-    if (error instanceof Error && (error.message.includes('Non-JSON response from Clockify') || error.message.includes('content-type'))) {
-      // Return empty list so UI remains usable when upstream returns HTML loader or non-JSON
-      return res.json([]);
-    }
-
-    res.status(500).json({
-      error: 'Internal server error'
-    });
+    return res.status(500).json({ error: 'Failed to fetch custom fields', detail: message });
   }
 };

@@ -5,5 +5,6 @@ const router: RouterType = Router();
 
 router.get('/', getSettings);
 router.post('/', updateSettings);
+router.patch('/', updateSettings);
 
 export default router;

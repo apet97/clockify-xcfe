@@ -39,12 +39,12 @@ export const getManifest: RequestHandler = (_req, res) => {
                 defaultValue: 'false'
               },
               {
-                id: 'evaluation_delay_seconds',
+                id: 'reference_months',
                 type: 'TXT',
-                label: 'Evaluation delay (seconds)',
-                description: 'Optional delay before formulas execute to allow Clockify to settle.',
+                label: 'Reference months',
+                description: 'Number of historical months to consider for overtime/backfill calculations (1-12).',
                 required: false,
-                defaultValue: '5'
+                defaultValue: '3'
               },
               {
                 id: 'region',

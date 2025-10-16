@@ -18,10 +18,6 @@ export const apiRequest = async <T>(token: string | null, path: string, init: Re
     url = new URL(normalized, window.location.origin);
   }
 
-  const iframeToken = new URLSearchParams(window.location.search).get('auth_token');
-  if (iframeToken && !url.searchParams.has('auth_token')) {
-    url.searchParams.set('auth_token', iframeToken);
-  }
   const headers = new Headers(init.headers as HeadersInit | undefined);
   headers.set('Accept', 'application/json');
 

@@ -10,6 +10,7 @@
  * All Clockify API calls from the add-on must include X-Addon-Token header.
  */
 
+import type { Request } from 'express';
 import { jwtVerify, decodeJwt, importSPKI, type JWTPayload } from 'jose';
 import { CONFIG } from '../config/index.js';
 import { logger } from './logger.js';
@@ -80,15 +81,12 @@ export async function verifyAddonToken(token: string): Promise<ClockifyAddonClai
       throw new Error('RSA_PUBLIC_KEY_PEM not configured');
     }
 
-    // Normalize PEM: support both full PEM and bare key body
     const pem = CONFIG.RSA_PUBLIC_KEY_PEM.includes('BEGIN PUBLIC KEY')
       ? CONFIG.RSA_PUBLIC_KEY_PEM
       : `-----BEGIN PUBLIC KEY-----\n${CONFIG.RSA_PUBLIC_KEY_PEM}\n-----END PUBLIC KEY-----`;
 
-    // Import SPKI via jose
     const key = await importSPKI(pem, 'RS256');
 
-    // Verify the JWT
     const { payload } = await jwtVerify(token, key, {
       algorithms: ['RS256']
     });
@@ -120,11 +118,11 @@ export async function verifyAddonToken(token: string): Promise<ClockifyAddonClai
     logger.warn({ error: errorMessage }, 'Token verification failed');
     // Final fallback: if token points to developer.clockify.me, accept decoded claims
     try {
-      const claims = parseClaims(token);
-      const host = (() => { try { return new URL(claims.backendUrl).host; } catch { return ''; } })();
-      if (/(^|\.)developer\.clockify\.me$/.test(host)) {
-        return claims;
-      }
+    const claims = parseClaims(token);
+    const host = (() => { try { return new URL(claims.backendUrl).host; } catch { return ''; } })();
+    if (/(^|\.)developer\.clockify\.me$/.test(host)) {
+      return claims;
+    }
     } catch {}
     throw new Error(`Token verification failed: ${errorMessage}`);
   }
@@ -138,31 +136,76 @@ export async function verifyAddonToken(token: string): Promise<ClockifyAddonClai
  */
 export function getContextFromToken(token: string): AddonContext {
   const claims = parseClaims(token);
+  const backendUrl = (claims.backendUrl || '').replace(/\/$/, '');
+  const workspaceId = claims.workspaceId ?? '';
+  const userId = typeof claims.user === 'string' ? claims.user : claims.user?.id ?? '';
+  const workspaceRole = (claims.workspaceRole || (claims as any).workspace_role || (claims as any).role) as string | undefined;
 
   return {
-    backendUrl: claims.backendUrl,
-    workspaceId: claims.workspaceId,
-    userId: claims.user.id,
-    user: claims.user
+    token,
+    claims: claims as ClockifyAddonClaims,
+    backendUrl,
+    workspaceId,
+    userId,
+    user: claims.user,
+    workspaceRole
   };
 }
 
 /**
  * Convert PEM-formatted public key to ArrayBuffer for Web Crypto API
  */
-function pemToArrayBuffer(pem: string): ArrayBuffer {
-  // Remove PEM header/footer and whitespace
-  const pemContent = pem
-    .replace(/-----BEGIN PUBLIC KEY-----/, '')
-    .replace(/-----END PUBLIC KEY-----/, '')
-    .replace(/\s/g, '');
+const hex24 = /^[a-fA-F0-9]{24}$/;
 
-  // Base64 decode
-  const binaryString = Buffer.from(pemContent, 'base64').toString('binary');
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+export function extractAddonToken(req: Request): string | null {
+  const headerToken = req.header('x-addon-token');
+  if (headerToken?.trim()) return headerToken.trim();
+
+  const authHeader = req.header('authorization');
+  if (authHeader) {
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (match && match[1]?.trim()) {
+      return match[1].trim();
+    }
   }
 
-  return bytes.buffer;
+  const queryToken = req.query.auth_token;
+  if (typeof queryToken === 'string' && queryToken.trim().length > 0) {
+    return queryToken.trim();
+  }
+
+  return null;
+}
+
+export interface AddonContext {
+  token: string;
+  claims: ClockifyAddonClaims;
+  backendUrl: string;
+  workspaceId: string;
+  userId: string;
+  user: ClockifyAddonClaims['user'];
+  workspaceRole?: string;
+}
+
+export async function resolveAddonContext(req: Request): Promise<AddonContext> {
+  const token = extractAddonToken(req);
+  if (!token) {
+    throw new Error('Missing Clockify auth token');
+  }
+
+  const claims = await verifyAddonToken(token);
+  const backendUrl = (claims.backendUrl || '').replace(/\/$/, '');
+  const workspaceId = claims.workspaceId;
+  const userId = typeof claims.user === 'string' ? claims.user : claims.user?.id;
+
+  if (!workspaceId || !userId) {
+    throw new Error('Token missing workspaceId or user id');
+  }
+
+  if (!hex24.test(workspaceId) || !hex24.test(userId)) {
+    throw new Error('workspaceId/user must be 24 character hex strings');
+  }
+
+  const workspaceRole = (claims.workspaceRole || (claims as any).workspace_role || (claims as any).role) as string | undefined;
+  return { token, claims, backendUrl, workspaceId, userId, user: claims.user, workspaceRole };
 }

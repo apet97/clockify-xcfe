@@ -1,13 +1,83 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../providers/AuthProvider.js';
 import { apiRequest } from '../utils/api.js';
+import { getAddonContext, getIframeToken } from '../utils/clockify.js';
 import type { Settings, HealthStatus } from '../types/api.js';
+
+const DEFAULT_SETTINGS: Settings = {
+  strict_mode: false,
+  reference_months: 3,
+  region: ''
+};
+
+const mapClockifySettings = (raw: unknown): Settings => {
+  const result: Settings = { ...DEFAULT_SETTINGS };
+
+  if (!raw) {
+    return result;
+  }
+
+  const extract = (id: string): unknown => {
+    if (Array.isArray(raw)) {
+      const match = raw.find((item: any) => item?.id === id || item?.key === id);
+      return match?.value ?? match?.defaultValue;
+    }
+    if (typeof raw === 'object') {
+      const obj = raw as Record<string, any>;
+      if (Array.isArray(obj.settings)) {
+        const match = obj.settings.find((item: any) => item?.id === id || item?.key === id);
+        return match?.value ?? match?.defaultValue;
+      }
+      if (obj[id] !== undefined) {
+        return obj[id];
+      }
+    }
+    return undefined;
+  };
+
+  const strictValue = extract('strict_mode');
+  if (strictValue !== undefined) {
+    result.strict_mode = strictValue === true || strictValue === 'true';
+  }
+
+  const refValue = extract('reference_months');
+  if (refValue !== undefined && refValue !== null && refValue !== '') {
+    const parsed = Number(refValue);
+    if (!Number.isNaN(parsed)) {
+      result.reference_months = parsed;
+    }
+  }
+
+  const regionValue = extract('region');
+  if (typeof regionValue === 'string') {
+    result.region = regionValue;
+  }
+
+  return result;
+};
+
+const serializeSettings = (settings: Settings) => [
+  { id: 'strict_mode', value: settings.strict_mode ? 'true' : 'false' },
+  { id: 'reference_months', value: String(settings.reference_months ?? '') },
+  { id: 'region', value: settings.region ?? '' }
+];
 
 const SettingsPage: React.FC = () => {
   const { token, user } = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+
+  const iframeToken = useMemo(() => getIframeToken(), []);
+  const addonContext = useMemo(() => {
+    if (!iframeToken) return null;
+    try {
+      return getAddonContext(iframeToken);
+    } catch (error) {
+      setError('Invalid auth token in URL');
+      return null;
+    }
+  }, [iframeToken]);
   
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -15,15 +85,32 @@ const SettingsPage: React.FC = () => {
   });
 
   const settingsQuery = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => apiRequest<Settings>(token, '/settings')
+    queryKey: ['clockify-settings', addonContext?.workspaceId],
+    enabled: Boolean(iframeToken && addonContext),
+    queryFn: async () => {
+      if (!iframeToken || !addonContext) {
+        throw new Error('Missing auth token');
+      }
+
+      const url = `${addonContext.backendUrl}/addon/workspaces/${addonContext.workspaceId}/settings`;
+      const response = await fetch(url, {
+        headers: {
+          'X-Addon-Token': iframeToken,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Failed to load settings (status ${response.status})`);
+      }
+
+      const data = await response.json();
+      return mapClockifySettings(data);
+    }
   });
 
-  const [localSettings, setLocalSettings] = useState<Settings>({
-    strict_mode: false,
-    reference_months: 3,
-    region: ''
-  });
+  const [localSettings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   React.useEffect(() => {
     if (settingsQuery.data) {
@@ -33,13 +120,41 @@ const SettingsPage: React.FC = () => {
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settings: Settings) => {
-      return apiRequest(token, '/settings', {
-        method: 'POST',
-        body: settings
+      if (!iframeToken || !addonContext) {
+        throw new Error('Missing auth token');
+      }
+
+      const payload = serializeSettings(settings);
+      const response = await fetch(`${addonContext.backendUrl}/addon/workspaces/${addonContext.workspaceId}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'X-Addon-Token': iframeToken,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Failed to save settings (status ${response.status})`);
+      }
+
+      if (response.status === 204) {
+        return null;
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (contentType.toLowerCase().includes('application/json')) {
+        return response.json();
+      }
+
+      return null;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      if (addonContext?.workspaceId) {
+        queryClient.invalidateQueries({ queryKey: ['clockify-settings', addonContext.workspaceId] });
+      }
       setError(null);
     },
     onError: (err) => {
