@@ -12,16 +12,20 @@ const router: Router = Router();
 // Schema for installation payload
 const InstallationPayloadSchema = z.object({
   addonId: z.string(),
-  authToken: z.string(),
   workspaceId: z.string(),
-  asUser: z.string(),
-  apiurl: z.string(),
-  addonUserId: z.string(),
-  webhooks: z.array(z.object({
-    path: z.string(),
-    webhookType: z.string(),
-    authToken: z.string()
-  })).optional()
+  authToken: z.string().optional(),
+  asUser: z.string().optional(),
+  apiurl: z.string().optional(),
+  addonUserId: z.string().optional(),
+  webhooks: z
+    .array(
+      z.object({
+        path: z.string(),
+        webhookType: z.string().optional(),
+        authToken: z.string().optional()
+      })
+    )
+    .optional()
 });
 
 // Schema for status changed payload
