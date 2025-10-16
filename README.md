@@ -2,6 +2,18 @@
 
 xCustom Field Expander (xCFE) keeps Clockify time-entry custom fields in sync with your business rules. Webhooks trigger a hardened formula engine that evaluates overtime multipliers, applies validations, and writes changes back through the Clockify API. An iframe-ready Admin UI lets operators manage formulas, dictionaries, backfills, and audit logs without leaving Clockify.
 
+## 🔒 Recent Security & Compliance Improvements (2025-10-16)
+
+**Upgraded to full Clockify Add-on Marketplace compliance:**
+- ✅ **JWT-based webhook verification** (migrated from HMAC to RSA256 signature validation)
+- ✅ **Webhook token storage** from installation payload for enhanced security
+- ✅ **Standardized manifest structure** per Clockify schema 1.3
+- ✅ **Structured settings** with admin-configurable options
+- ✅ **Complete JWT claims validation** (iss, sub, type, nbf, aud)
+- ✅ **Security Grade: A+** (see `ADDON_BEST_PRACTICES_AUDIT.md`)
+
+See `WEBHOOK_JWT_MIGRATION.md` for detailed migration notes.
+
 ## Quickstart
 ```bash
 corepack enable pnpm

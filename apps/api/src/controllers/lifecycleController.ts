@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { verifyClockifyJwt } from '../lib/jwt.js';
 import { upsertInstallation, deleteInstallation } from '../services/installationService.js';
 import { updateWorkspaceSettings } from '../services/settingsService.js';
+import { storeWebhookToken, clearWebhookTokens } from '../lib/webhookSecurity.js';
 import { CONFIG } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 import { recordLifecycleEvent } from '../lib/lifecycleTracker.js';
@@ -48,10 +49,26 @@ export const handleInstalled: RequestHandler = async (req, res) => {
     return res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid lifecycle token' });
   }
 
-  const { addonId, workspaceId, authToken } = req.body;
+  const { addonId, workspaceId, authToken, webhookTokens } = req.body;
 
   if (!addonId || !workspaceId) {
     return res.status(400).json({ error: 'Missing required installation data' });
+  }
+
+  // Store webhook-specific tokens from installation payload (per Clockify Add-on Guide)
+  // These tokens are used to verify incoming webhook requests
+  if (webhookTokens && typeof webhookTokens === 'object') {
+    let tokenCount = 0;
+    for (const [eventType, token] of Object.entries(webhookTokens)) {
+      if (typeof token === 'string') {
+        storeWebhookToken(workspaceId, eventType, token);
+        tokenCount++;
+      }
+    }
+    logger.info(
+      { workspaceId, addonId, webhookTokenCount: tokenCount },
+      'Stored webhook tokens from installation'
+    );
   }
 
   if (CONFIG.SKIP_DATABASE_CHECKS) {
@@ -226,6 +243,10 @@ export const handleDeleted: RequestHandler = async (req, res) => {
   if (!addonId || !workspaceId) {
     return res.status(400).json({ error: 'Missing required deletion data' });
   }
+
+  // Clear all webhook tokens for this workspace
+  clearWebhookTokens(workspaceId);
+  logger.info({ workspaceId, addonId }, 'Cleared webhook tokens for uninstalled addon');
 
   if (CONFIG.SKIP_DATABASE_CHECKS) {
     logger.info({ addonId, workspaceId, userId: claims.userId }, 'Add-on deleted (storage skipped)');

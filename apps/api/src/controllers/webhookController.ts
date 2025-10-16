@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { createHash, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { clockifyClient } from '../lib/clockifyClient.js';
-import { verifyClockifySignature } from '../lib/webhookSecurity.js';
+import { verifyWebhookSignature } from '../lib/webhookSecurity.js';
 import { fetchFormulaEngineInputs } from '../services/formulaService.js';
 import { FormulaEngine } from '../lib/formulaEngine.js';
 import { computeOtSummary } from '../lib/otRules.js';
@@ -62,17 +62,28 @@ const extractTimeEntryPayload = (body: unknown) => {
 
 export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => {
   try {
-    // Verify addon token if present
+    // Verify addon token if present (additional layer of security)
     const addonToken = req.header('x-addon-token');
     if (CONFIG.ADDON_TOKEN && addonToken !== CONFIG.ADDON_TOKEN) {
       logger.warn({ addonToken: addonToken ? '[REDACTED]' : undefined }, 'Invalid addon token');
       return res.status(403).json({ error: 'Invalid addon token' });
     }
 
-    const rawBody = (req as any).rawBody ?? JSON.stringify(req.body ?? {});
-    const signature = req.header('x-clockify-signature');
-    if (!verifyClockifySignature(rawBody, signature)) {
-      return res.status(401).json({ error: 'Invalid webhook signature' });
+    // Verify JWT signature from clockify-signature header (per Clockify Add-on Guide)
+    const signatureJwt = req.header('clockify-signature');
+    const eventTypeHeader = req.header('clockify-webhook-event-type') || req.header('x-clockify-event');
+
+    const verificationResult = await verifyWebhookSignature(signatureJwt, eventTypeHeader);
+
+    if (!verificationResult.valid) {
+      logger.warn(
+        { error: verificationResult.error, eventType: eventTypeHeader },
+        'Webhook signature verification failed'
+      );
+      return res.status(401).json({
+        error: 'Invalid webhook signature',
+        detail: verificationResult.error
+      });
     }
 
     const correlationId: string = (req as any).correlationId ?? randomUUID();

@@ -1,11 +1,10 @@
 {
   "schemaVersion": "1.3",
+  "key": "xcfe-custom-field-expander",
   "name": "xCustom Field Expander",
-  "slug": "xcfe",
-  "version": "1.0.0",
-  "icon": "https://assets.xcfe.example.com/icon.png",
-  "summary": "Automated formula evaluation and validation for Clockify custom fields",
-  "description": "xCustom Field Expander (xCFE) automatically evaluates mathematical formulas, conditional logic, and validation rules for Clockify time entries. Configure formulas to compute amounts, categorize entries, validate data integrity, and maintain consistent custom field values across your workspace.",
+  "baseUrl": "https://your-vercel-domain.vercel.app",
+  "description": "Automated formula evaluation and validation for Clockify custom fields. Computes amounts, categorizes entries, validates data integrity, and maintains consistent custom field values across your workspace using mathematical formulas, conditional logic, and overtime rules.",
+  "subscriptionPlan": "PRO",
   "scopes": [
     "TIME_ENTRY_READ",
     "TIME_ENTRY_WRITE",
@@ -15,42 +14,82 @@
     "CUSTOM_FIELDS_READ",
     "REPORTS_READ"
   ],
-  "authentication": {
-    "strategies": [
+  "components": [
+    {
+      "type": "sidebar.page",
+      "label": "Field Expander",
+      "path": "/ui/sidebar",
+      "accessLevel": "ADMINS"
+    }
+  ],
+  "settings": {
+    "type": "STRUCTURED",
+    "path": "/lifecycle/settings-updated",
+    "properties": [
       {
-        "type": "addon_token",
-        "header": "X-Addon-Token"
+        "key": "strict_mode",
+        "label": "Strict Validation Mode",
+        "type": "CHECKBOX",
+        "value": false,
+        "required": false,
+        "accessLevel": "ADMINS",
+        "hint": "Enable strict validation for all formula evaluations. When enabled, formulas with errors will prevent time entry updates."
       },
       {
-        "type": "api_key", 
-        "header": "X-Api-Key"
+        "key": "reference_months",
+        "label": "OT Reference Period (months)",
+        "type": "NUMBER",
+        "value": 6,
+        "required": false,
+        "accessLevel": "ADMINS",
+        "hint": "Number of historical months to consider for overtime calculations. Valid range: 1-12 months. Default: 6."
+      },
+      {
+        "key": "region",
+        "label": "Clockify Region Override",
+        "type": "SELECT",
+        "required": false,
+        "accessLevel": "ADMINS",
+        "options": [
+          { "value": "auto", "label": "Auto-detect from JWT" },
+          { "value": "global", "label": "Global (api.clockify.me)" },
+          { "value": "euc1", "label": "Europe - Germany (euc1)" },
+          { "value": "use2", "label": "USA (use2)" },
+          { "value": "euw2", "label": "UK (euw2)" },
+          { "value": "apse2", "label": "Australia (apse2)" }
+        ],
+        "hint": "Override automatic region detection. Recommended: Leave on 'Auto-detect' to use workspace's configured region."
       }
     ]
   },
-  "iframeUrl": "https://your-vercel-domain.vercel.app/ui/sidebar",
-  "webhookUrl": "https://your-vercel-domain.vercel.app/v1/webhooks/clockify",
-  "regions": ["global", "euc1", "use2", "euw2", "apse2"],
-  "minimalSubscriptionPlan": "PRO",
-  "features": {
-    "backfill": {
-      "supportsManual": true,
-      "supportsAutomated": false,
-      "maxMonths": 6
+  "lifecycle": {
+    "installed": {
+      "method": "POST",
+      "path": "/lifecycle/installed"
     },
-    "realtime": {
-      "supportsCreate": true,
-      "supportsUpdate": true,
-      "supportsDelete": false
+    "statusChanged": {
+      "method": "POST",
+      "path": "/lifecycle/status-changed"
     },
-    "validation": {
-      "dropdowns": true,
-      "numericRanges": true,
-      "customRules": true
+    "settingsUpdated": {
+      "method": "POST",
+      "path": "/lifecycle/settings-updated"
+    },
+    "deleted": {
+      "method": "POST",
+      "path": "/lifecycle/deleted"
     }
   },
-  "support": {
-    "email": "support@example.com",
-    "documentation": "https://docs.xcfe.example.com",
-    "slaHours": 24
-  }
+  "webhooks": [
+    {
+      "event": "TIME_ENTRY_UPDATED",
+      "path": "/v1/webhooks/clockify",
+      "webhookType": "ADDON"
+    },
+    {
+      "event": "TIME_ENTRY_CREATED",
+      "path": "/v1/webhooks/clockify",
+      "webhookType": "ADDON"
+    }
+  ]
 }
