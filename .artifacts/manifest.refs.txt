@@ -1,0 +1,50 @@
+infra/manifest.json:9:  "scopes": [
+infra/manifest.json:31:  "webhookUrl": "https://your-vercel-domain.vercel.app/v1/webhooks/clockify",
+docs/CLAUDE_HANDOFF_PROMPT.txt:6:3. Confirm the consolidated webhook pipeline runs for both the `/v1/webhooks/clockify` endpoint and the legacy `/v1/webhooks/time-entry-*` endpoints.
+docs/CLAUDE_HANDOFF_PROMPT.txt:11:2. Explore the `newyork/` folder, especially add-on guides and docs, to internalize best practices for manifest, lifecycle, authentication, and Clockify API usage. Extract the key requirements and confirm current implementation aligns.
+infra/vercel.json:13:    { "src": "/manifest.json", "dest": "/apps/api/src/server.ts" },
+docs/https-docs-clockify-me.md:33:    - getGet all webhooks for addon on workspace
+docs/https-docs-clockify-me.md:34:    - getGet all webhooks on workspace
+docs/https-docs-clockify-me.md:35:    - postCreate webhooks
+docs/https-docs-clockify-me.md:234:Webhooks can enhance your workflow by keeping your add-on up-to-date with the latest changes in Clockify. With Clockify’s webhooks you can receive real-time notifications when certain events such as starting timer or deleting time entry occur in Clockify. Workspace admins can create up to 10 webhooks each, with a total of 100 webhooks allowed per workspace.
+docs/https-docs-clockify-me.md:2333:## [](#tag/Webhooks/operation/getAddonWebhooks)Get all webhooks for addon on workspace
+docs/https-docs-clockify-me.md:2352: get/v1/workspaces/{workspaceId}/addons/{addonId}/webhookshttps://api.clockify.me/api/v1/workspaces/{workspaceId}/addons/{addonId}/webhooks
+docs/https-docs-clockify-me.md:2357:- "webhooks": [
+docs/https-docs-clockify-me.md:2377:## [](#tag/Webhooks/operation/getWebhooks)Get all webhooks on workspace
+docs/https-docs-clockify-me.md:2399: get/v1/workspaces/{workspaceId}/webhookshttps://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks
+docs/https-docs-clockify-me.md:2404:- "webhooks": [
+docs/https-docs-clockify-me.md:2424:## [](#tag/Webhooks/operation/createWebhook)Create webhooks
+docs/https-docs-clockify-me.md:2461: post/v1/workspaces/{workspaceId}/webhookshttps://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks
+docs/https-docs-clockify-me.md:2513: delete/v1/workspaces/{workspaceId}/webhooks/{webhookId}https://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}
+docs/https-docs-clockify-me.md:2534: get/v1/workspaces/{workspaceId}/webhooks/{webhookId}https://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}
+docs/https-docs-clockify-me.md:2591: put/v1/workspaces/{workspaceId}/webhooks/{webhookId}https://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}
+docs/https-docs-clockify-me.md:2667: post/v1/workspaces/{workspaceId}/webhooks/{webhookId}/logshttps://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/logs
+docs/https-docs-clockify-me.md:2713: patch/v1/workspaces/{workspaceId}/webhooks/{webhookId}/tokenhttps://api.clockify.me/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/token
+apps/api/src/services/backfillService.ts:73:  ctx?: { authToken?: string; baseUrlOverride?: string }
+apps/api/src/services/backfillService.ts:98:      liveEntry = await clockifyClient.getTimeEntry(workspaceId, entry.id, entryCorrelationId, ctx?.authToken, ctx?.baseUrlOverride);
+apps/api/src/services/backfillService.ts:137:              { correlationId: entryCorrelationId, authToken: ctx?.authToken, baseUrlOverride: ctx?.baseUrlOverride }
+apps/api/src/services/backfillService.ts:225:  ctx?: { workspaceId?: string; authToken?: string; baseUrlOverride?: string }
+apps/api/src/services/backfillService.ts:300:              ctx?.baseUrlOverride
+apps/api/src/services/backfillService.ts:339:          { authToken: ctx?.authToken, baseUrlOverride: ctx?.baseUrlOverride }
+docs/code-review.md:7:- The manifest health check takes the same dependency by connecting to the database before returning JSON, so `/v1/sites/health` also fails when Postgres is down even though Clockify only needs manifest + lifecycle endpoints online for installation.【F:apps/api/src/controllers/healthController.ts†L12-L64】
+docs/code-review.md:33:- `healthCheck` returns `manifest: true` even if fetching the manifest would fail due to earlier validation errors, and conflates API uptime with database readiness. Marketplace verifiers typically want to know whether they can fetch the manifest and lifecycle URLs; the current implementation reports success while masking missing manifest routes or DB errors.【F:apps/api/src/controllers/healthController.ts†L12-L64】
+docs/code-review.md:35:**Suggestion:** Split runtime health (manifest + lifecycle reachable) from deep checks (database connectivity), and surface individual failure reasons so the developer portal can display actionable diagnostics.
+apps/api/src/services/webhookRegistrar.ts:21:  const targetUrl = new URL('/v1/webhooks/clockify', CONFIG.WEBHOOK_PUBLIC_URL).toString();
+apps/api/src/services/webhookRegistrar.ts:25:    // List existing webhooks with retry on rate limit
+apps/api/src/services/webhookRegistrar.ts:26:    let webhooks: WebhookInfo[] = [];
+apps/api/src/services/webhookRegistrar.ts:32:        webhooks = await clockifyClient.listWebhooks(CONFIG.WORKSPACE_ID, CONFIG.ADDON_ID);
+apps/api/src/services/webhookRegistrar.ts:37:          logger.warn({ retryAfterMs: delayMs, attempt: retryCount + 1 }, 'Rate limited while listing webhooks, retrying');
+apps/api/src/services/webhookRegistrar.ts:46:    // Find webhooks for our target URL
+apps/api/src/services/webhookRegistrar.ts:47:    const targetWebhooks = webhooks.filter(webhook => webhook.url === targetUrl);
+apps/api/src/services/webhookRegistrar.ts:54:      }, 'Found existing webhooks for target URL');
+apps/api/src/services/webhookRegistrar.ts:58:    // Create missing webhooks for events not covered
+apps/api/src/services/webhookRegistrar.ts:63:      logger.info({ missingEvents, targetUrl }, 'Creating webhooks for missing events');
+apps/api/src/services/webhookRegistrar.ts:88:    // Reconcile: delete unknown webhooks if enabled
+apps/api/src/services/webhookRegistrar.ts:90:      const unknownWebhooks = webhooks.filter(webhook => 
+apps/api/src/services/webhookRegistrar.ts:92:        !webhook.url.includes('localhost') // Preserve dev webhooks
+apps/api/src/services/webhookRegistrar.ts:110:              break; // Continue with other webhooks
+docs/NEXT_AI_CLI_GUIDE.md:50:  - Posts the same payload twice to `/v1/webhooks/clockify` with HMAC signature (requires `CLOCKIFY_WEBHOOK_SECRET` exported). First should produce changes; second returns duplicate/no-op.
+docs/NEXT_AI_CLI_GUIDE.md:66:- Backfill service accepts ctx with workspaceId/authToken/baseUrlOverride; tokens resolved via installationService or in-memory cache.
+docs/NEXT_AI_CLI_GUIDE.md:67:- Webhook routes `/v1/webhooks/time-entry-*` delegate to consolidated handler; all evaluate formulas and record runs.
+docs/NEXT_AI_CLI_GUIDE.md:68:- Health route `/health` returns `{ ok, status, workspaceId, addonKey, baseUrl, timestamp, db }`.
+docs/VERCEL_ENV_AND_PEM_CHECK.md:3:Pasteable steps to set the Clockify RSA public key, required envs, and redeploy. Tokens are provided by Clockify at installation and via webhooks — do NOT put installation or webhook tokens in env.

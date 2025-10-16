@@ -1,0 +1,104 @@
+digraph xCFE {
+  rankdir=LR;
+  node [shape=box];
+
+  // External actors
+  clockify [label="Clockify Platform", shape=component];
+  marketplace [label="Marketplace\n(manifest fetch)", shape=component];
+
+  // Lifecycle events
+  subgraph cluster_lifecycle {
+    label="Lifecycle Hooks";
+    bgcolor=lightblue;
+    installed [label="/v1/lifecycle/installed"];
+    status [label="/v1/lifecycle/status-changed"];
+    settings [label="/v1/lifecycle/settings-updated"];
+    uninstalled [label="/v1/lifecycle/uninstalled"];
+  }
+
+  // Webhook pipeline
+  subgraph cluster_webhooks {
+    label="Webhook Ingest";
+    bgcolor=lightgreen;
+    wh_consolidated [label="/v1/webhooks/clockify\n(consolidated)"];
+    wh_legacy [label="Legacy routes\n(time-entry-*)"];
+    wh_verify [label="HMAC verify\n(webhookSecurity.ts)"];
+    wh_controller [label="webhookController\n(compute+diff)"];
+  }
+
+  // Core logic
+  subgraph cluster_core {
+    label="Formula Engine";
+    bgcolor=lightyellow;
+    compute [label="Formula Eval\n(formulaEngine.ts)"];
+    diff [label="Compute Diff"];
+    fingerprint [label="Fingerprint Cache\n(in-memory Map)"];
+    patch [label="Single PATCH\n(patchTimeEntryCustomFields)"];
+  }
+
+  // Storage
+  subgraph cluster_storage {
+    label="State Storage";
+    bgcolor=lightgray;
+    install_mem [label="installMemory\n(in-memory)"];
+    install_db [label="installationService\n(DB optional)"];
+    formulas_db [label="Formulas/Dictionaries\n(DB)"];
+  }
+
+  // API clients
+  subgraph cluster_api {
+    label="Clockify API Clients";
+    bgcolor=lightcyan;
+    rest_client [label="Core API\n(getTimeEntry,PATCH)"];
+    reports_client [label="Reports API\n(getDetailedReport)"];
+    rate_limiter [label="rateLimiter\n(per-workspace)"];
+  }
+
+  // Admin UI
+  admin_ui [label="Admin UI\n(iframe)", shape=folder];
+
+  // Flows
+  marketplace -> installed [label="/manifest"];
+  clockify -> installed [label="JWT\n(X-Addon-Lifecycle-Token)"];
+  installed -> install_mem [label="rememberInstallation\n(authToken,backendUrl)"];
+  installed -> install_db [label="upsertInstallation\n(if !SKIP_DATABASE_CHECKS)"];
+
+  clockify -> wh_consolidated [label="NEW_TIME_ENTRY,\nTIME_ENTRY_UPDATED"];
+  clockify -> wh_legacy [label="Legacy events"];
+  wh_legacy -> wh_consolidated [label="delegate"];
+  wh_consolidated -> wh_verify [label="clockify-signature\n(HMAC-SHA256)"];
+  wh_verify -> wh_controller [label="if valid"];
+
+  wh_controller -> rest_client [label="getTimeEntry\n(X-Addon-Token from cache)"];
+  rest_client -> rate_limiter;
+  rate_limiter -> clockify [label="GET /time-entries/{id}"];
+
+  wh_controller -> compute [label="evaluate formulas"];
+  compute -> formulas_db [label="fetch formulas"];
+  compute -> diff [label="compute changes"];
+
+  diff -> fingerprint [label="SHA256(diff)"];
+  fingerprint -> patch [label="if not duplicate"];
+  patch -> rest_client [label="PATCH /time-entries/{id}"];
+  rest_client -> clockify;
+
+  // Backfill flow
+  backfill [label="/v1/backfill"];
+  backfill -> reports_client [label="getDetailedReport\n(pageSize=200)"];
+  reports_client -> rate_limiter;
+  rate_limiter -> clockify [label="POST /reports/detailed\n(reportsUrl from JWT)"];
+  reports_client -> compute [label="foreach entry"];
+
+  // Admin UI flow
+  admin_ui -> install_mem [label="API calls\n(?auth_token from query)"];
+  admin_ui -> formulas_db [label="CRUD formulas"];
+
+  // JWT auth flow
+  jwt_verify [label="JWT Verify\n(jwt.ts)", shape=diamond];
+  installed -> jwt_verify;
+  wh_verify -> jwt_verify [label="lifecycle tokens"];
+  jwt_verify -> install_mem [label="extract backendUrl,\nreportsUrl"];
+
+  // Legend
+  {rank=same; clockify; marketplace;}
+}

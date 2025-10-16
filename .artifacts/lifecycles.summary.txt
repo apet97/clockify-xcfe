@@ -1,0 +1,31 @@
+# Lifecycle Endpoints
+## Routes (apps/api/src/routes/lifecycle.ts)
+- POST /installed - Installation hook (X-Addon-Lifecycle-Token)
+- POST /status-changed - Enable/disable hook
+- POST /settings-updated - Settings change hook
+- POST /updated - Version update hook
+- POST /uninstalled - Uninstall hook
+All have GET variants for liveness probes
+
+## JWT Verification
+- verifyClockifyJwt(token, CONFIG.ADDON_KEY, requireBackendUrl=false)
+- Headers: x-addon-lifecycle-token OR clockify-signature
+- DEV_ALLOW_UNSIGNED bypass for local testing
+- JWT claims: addonId, workspaceId, userId, sub, backendUrl (optional)
+
+## Installation Flow (apps/api/src/routes/lifecycle.ts:56)
+1. Verify JWT token
+2. Parse InstallationPayloadSchema (addonId, authToken, workspaceId, asUser, apiurl, webhooks[])
+3. Cache authToken + backendUrl in memory via rememberInstallation()
+4. Persist minimal state to .state/install.json
+5. Return 200 success
+
+## Token Storage
+- In-memory cache: installMemory.ts (rememberInstallation/forgetInstallation)
+- DB persistence: installationService.ts (upsertInstallation/deleteInstallation)
+- SKIP_DATABASE_CHECKS env bypasses DB writes
+
+## Security Notes
+- No JTI replay cache observed in lifecycle routes
+- DEV_ALLOW_UNSIGNED bypasses JWT verification entirely
+- Lifecycle tokens accepted from two headers (x-addon-lifecycle-token, clockify-signature)

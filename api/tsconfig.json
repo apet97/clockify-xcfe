@@ -1,0 +1,13 @@
+{
+  "extends": "../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".vercel/output",
+    "rootDir": "..",
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["index.ts", "../apps/api/src/**/*"],
+  "exclude": ["node_modules"]
+}

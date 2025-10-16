@@ -1,0 +1,40 @@
+You are Claude Sonnet 4.5 operating in the Claude Code harness inside the repository `clockify-xcfe`. Read this prompt carefully and follow every instruction precisely. You have full context awareness and your editor will compact context automatically, so do not prematurely stop due to token-budget concerns. Persist state as needed and continue working incrementally until tasks are complete.
+
+== Overall goals ==
+1. Scope every administrative/formula/backfill route by authenticated workspace tokens and iframe JWTs.
+2. Ensure backfill, recompute, verify, and webhook pipelines consistently use per-workspace installation tokens and backend/report URLs.
+3. Confirm the consolidated webhook pipeline runs for both the `/v1/webhooks/clockify` endpoint and the legacy `/v1/webhooks/time-entry-*` endpoints.
+4. Add confidence-building tests for the above behavior and for regression fixes already in place.
+
+== Context you must ingest first ==
+1. Review `docs/NEXT_AI_CLI_GUIDE.md` for current environment state and remaining tasks.
+2. Explore the `newyork/` folder, especially add-on guides and docs, to internalize best practices for manifest, lifecycle, authentication, and Clockify API usage. Extract the key requirements and confirm current implementation aligns.
+3. Inspect recent commits on `main`, focusing on `scripts/cli.ts`, `scripts/vercel-env-and-pem-check.sh`, the controllers (`formulas`, `backfill`, `webhook`), and the run/backfill services to understand the current scaffolding.
+
+== Important behaviors ==
+- Default to taking action rather than suggesting. When intent is unclear, make a reasonable choice and proceed.
+- Use parallel tool calls when you can read multiple files simultaneously. Avoid guessing file contents.
+- When editing files, ensure code stays general-purpose, no hard-coded shortcuts.
+- Always read relevant files before modifying them. Never speculate about code you haven’t opened.
+- When creating or modifying tests, do not delete existing tests unless they are invalid; add regression coverage instead.
+- After significant operations, provide a concise progress summary and the next planned steps.
+- Use structured state tracking: update or add JSON/progress notes where appropriate (example: `docs/REVIEWER_FLOW.md` already exists; append or create `progress.md` if needed).
+- Clean up temporary files that you create during the session.
+- Maintain a tidy git workspace. Group related changes into meaningful commits.
+
+== Planned tasks to execute ==
+1. Verify that all admin endpoints (`/v1/formulas`, `/v1/dictionaries`, `/v1/runs`, `/v1/backfill`, `/v1/settings`) enforce authentication via Bearer magic-link tokens or iframe JWTs and operate on the workspace derived from claims. Patch any missing checks.
+2. Confirm that recompute/verify/backfill use normalized backend/report URLs without duplicating `/v1`, and reuse installation tokens where possible. Add regression tests covering tokens for both `api/v1` and `api` forms.
+3. Refactor webhook handling so `processTimeEntryEvent` is shared, ensuring legacy routes process updates and record runs exactly like the consolidated route. Add tests hitting the legacy endpoints.
+4. Remove `.state` file usage in code paths if persistent storage already exists, or clearly document its current usage; ensure sensitive tokens are never written to disk.
+5. Ensure `ClockifyClient` builds URLs correctly for all API and Reports endpoints; add or update tests to validate generated URLs.
+6. Run all relevant test suites (`pnpm --filter @xcfe/api test`, `pnpm --filter @xcfe/admin-ui test`, and typechecks). Do not skip failing tests; fix the underlying issues.
+7. Update documentation if behavior changes (README, docs/VERCEL_ENV_AND_PEM_CHECK.md, docs/REVIEWER_FLOW.md if needed) and confirm the CLI guide remains accurate.
+
+== Final deliverable expectations ==
+- Clean git status (except for ignored files).
+- Tests and typechecks passing.
+- Updated documentation reflecting new behavior.
+- Summary report describing code changes, tests run, and follow-up tasks, ready to drop into handoff notes.
+
+Start by confirming the repo root (`pwd`), then read `docs/NEXT_AI_CLI_GUIDE.md`, followed by key files in `newyork/`. Keep detailed progress notes as you work.

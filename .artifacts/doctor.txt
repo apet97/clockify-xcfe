@@ -1,0 +1,78 @@
+xCFE Doctor - Environment & Deployment Health Check
+
+1. Environment Variables
+┌─────────────────────────┬───────────┐
+│ (index)                 │ Values    │
+├─────────────────────────┼───────────┤
+│ BASE_URL                │ 'MISSING' │
+│ CLOCKIFY_PUBLIC_KEY_PEM │ 'MISSING' │
+│ ADDON_KEY               │ 'MISSING' │
+│ WORKSPACE_ID            │ 'MISSING' │
+└─────────────────────────┴───────────┘
+
+2. Manifest Endpoint
+✗ Manifest unreachable (500): A server error has occurred
+
+FUNCTION_INVOCATION_FAILED
+
+fra1::95gb6-1760575702317-66a07e1d9f5f
+
+
+3. Health Endpoint
+✗ Health check failed (500)
+
+4. Lifecycle Endpoints (GET probes)
+  ✗ installed: 500
+  ✗ status-changed: 500
+  ✗ settings-updated: 500
+  ✗ updated: 500
+  ✗ uninstalled: 500
+
+5. Local Install State
+  No install state at /Users/15x/Downloads/xCustomFieldExpander/clockify-xcfe/.state/install.json
+
+=== Summary ===
+✗ Some checks failed
+
+Full results:
+{
+  "env": {
+    "BASE_URL": "MISSING",
+    "CLOCKIFY_PUBLIC_KEY_PEM": "MISSING",
+    "ADDON_KEY": "MISSING",
+    "WORKSPACE_ID": "MISSING"
+  },
+  "manifest": {
+    "url": "https://clockify-xcfe-git-main-alexs-projects-a9be258a.vercel.app/manifest",
+    "status": 500,
+    "ok": false
+  },
+  "health": {
+    "url": "https://clockify-xcfe-git-main-alexs-projects-a9be258a.vercel.app/health",
+    "status": 500,
+    "ok": false
+  },
+  "lifecycle": {
+    "installed": {
+      "status": 500,
+      "ok": false
+    },
+    "status-changed": {
+      "status": 500,
+      "ok": false
+    },
+    "settings-updated": {
+      "status": 500,
+      "ok": false
+    },
+    "updated": {
+      "status": 500,
+      "ok": false
+    },
+    "uninstalled": {
+      "status": 500,
+      "ok": false
+    }
+  },
+  "installState": null
+}

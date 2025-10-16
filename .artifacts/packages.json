@@ -1,0 +1,61 @@
+[
+  {
+    "name": "clockify-xcfe",
+    "scripts": {
+      "dev": "bash scripts/dev.sh",
+      "dev:addon": "node simple-addon.mjs",
+      "dev:api": "pnpm --filter @xcfe/api dev",
+      "build": "pnpm -r build",
+      "cli": "tsx scripts/cli.ts",
+      "test": "pnpm --filter @xcfe/api test && pnpm --filter @xcfe/admin-ui test",
+      "lint": "pnpm -r lint",
+      "fmt": "prettier --write .",
+      "fmt:check": "prettier --check .",
+      "typecheck": "pnpm -r typecheck"
+    },
+    "dependencies": []
+  },
+  {
+    "name": "@xcfe/api",
+    "scripts": {
+      "dev": "tsx watch src/server.ts",
+      "build": "tsc -p tsconfig.build.json",
+      "start": "node dist/server.js",
+      "typecheck": "tsc --noEmit",
+      "lint": "eslint \"src/**/*.{ts,tsx}\"",
+      "test": "cd ../.. && npx vitest run --config vitest.config.ts"
+    },
+    "dependencies": [
+      "@types/jsonwebtoken",
+      "cors",
+      "dotenv",
+      "expr-eval",
+      "express",
+      "jose",
+      "jsonwebtoken",
+      "pg",
+      "pino",
+      "pino-http",
+      "uuid",
+      "zod"
+    ]
+  },
+  {
+    "name": "@xcfe/admin-ui",
+    "scripts": {
+      "dev": "vite",
+      "build": "vite build",
+      "preview": "vite preview",
+      "test": "vitest --run",
+      "typecheck": "tsc --noEmit",
+      "lint": "eslint \"src/**/*.{ts,tsx}\""
+    },
+    "dependencies": [
+      "@tanstack/react-query",
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "zod"
+    ]
+  }
+]

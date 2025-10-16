@@ -1,0 +1,6 @@
+/**
+ * Vercel serverless entry point - direct import from source
+ */
+import app from '../apps/api/src/app';
+
+export default app;

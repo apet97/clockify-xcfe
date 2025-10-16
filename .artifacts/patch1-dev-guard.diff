@@ -1,0 +1,14 @@
+--- a/apps/api/src/config/env.ts
++++ b/apps/api/src/config/env.ts
+@@ -127,6 +127,12 @@ if (!parsed.success) {
+ 
+ const env = parsed.data;
+ 
++// CRITICAL: Prevent DEV_ALLOW_UNSIGNED in production
++if (env.NODE_ENV === 'production' && env.DEV_ALLOW_UNSIGNED) {
++  throw new Error('SECURITY ERROR: DEV_ALLOW_UNSIGNED must not be enabled in production environment');
++}
++
+ export type Env = typeof env;
+ 
+ export const CONFIG = env;

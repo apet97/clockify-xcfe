@@ -1,0 +1,13 @@
+--- a/apps/api/src/lib/jwt.ts
++++ b/apps/api/src/lib/jwt.ts
+@@ -94,6 +94,10 @@ const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string
+   if (claims.type !== 'addon') {
+     throw new Error('Invalid JWT type, expected "addon"');
+   }
++  
++  if (claims.aud && claims.aud !== CONFIG.ADDON_KEY) {
++    throw new Error(`Invalid JWT audience, expected "${CONFIG.ADDON_KEY}", got "${claims.aud}"`);
++  }
+ 
+   if (claims.iss !== 'clockify') {
+     throw new Error(`Invalid JWT issuer, expected "clockify", got "${claims.iss || ''}"`);

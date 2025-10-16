@@ -1,0 +1,30 @@
+apps/api/src/routes/lifecycle.ts:58:    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
+apps/api/src/routes/lifecycle.ts:145:    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
+apps/api/src/routes/lifecycle.ts:199:    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
+apps/api/src/routes/lifecycle.ts:253:    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
+apps/api/src/routes/lifecycle.ts:300:    const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
+apps/api/src/routes/webhooks.ts:39:  const sig = (req.headers['clockify-signature'] as string) || '';
+apps/api/src/routes/webhooks.ts:40:  if (sig && !req.headers['x-clockify-signature']) req.headers['x-clockify-signature'] = sig;
+apps/api/src/routes/webhooks.ts:61:  const sig = (req.headers['clockify-signature'] as string) || '';
+apps/api/src/routes/webhooks.ts:62:  if (sig && !req.headers['x-clockify-signature']) req.headers['x-clockify-signature'] = sig;
+apps/api/src/routes/webhooks.ts:82:  const sig = (req.headers['clockify-signature'] as string) || '';
+apps/api/src/routes/webhooks.ts:83:  if (sig && !req.headers['x-clockify-signature']) req.headers['x-clockify-signature'] = sig;
+apps/api/src/controllers/webhookController.ts:19:const patchFingerprintCache = new Map<string, { fingerprint: string; timestamp: number }>();
+apps/api/src/controllers/webhookController.ts:22:const shouldSkipFingerprint = (key: string, fingerprint: string) => {
+apps/api/src/controllers/webhookController.ts:30:  return record.fingerprint === fingerprint;
+apps/api/src/controllers/webhookController.ts:33:const rememberFingerprint = (key: string, fingerprint: string) => {
+apps/api/src/controllers/webhookController.ts:34:  patchFingerprintCache.set(key, { fingerprint, timestamp: Date.now() });
+apps/api/src/controllers/webhookController.ts:76:    const signature = req.header('x-clockify-signature');
+apps/api/src/controllers/webhookController.ts:77:    if (!verifyClockifySignature(rawBody, signature)) {
+apps/api/src/controllers/webhookController.ts:78:      return res.status(401).json({ error: 'Invalid webhook signature' });
+apps/api/src/controllers/webhookController.ts:193:    const fingerprint = createHash('sha256').update(JSON.stringify(diff)).digest('hex');
+apps/api/src/controllers/webhookController.ts:194:    const fingerprintKey = buildFingerprintKey(workspaceId, liveEntry.id);
+apps/api/src/controllers/webhookController.ts:215:    if (shouldSkipFingerprint(fingerprintKey, fingerprint)) {
+apps/api/src/controllers/webhookController.ts:224:        diff: { reason: 'Duplicate fingerprint', warnings, ot: otSummary, fingerprint }
+apps/api/src/controllers/webhookController.ts:238:    rememberFingerprint(fingerprintKey, fingerprint);
+apps/api/src/controllers/webhookController.ts:247:      diff: { changes: diff, warnings, ot: otSummary, beforeHash, latestHash, fingerprint }
+apps/api/src/controllers/lifecycleController.ts:23:  const token = (req.headers['x-addon-lifecycle-token'] as string) || (req.headers['clockify-signature'] as string);
+apps/api/src/lib/webhookSecurity.ts:4:export const verifyClockifySignature = (rawBody: string, signatureHeader?: string | null): boolean => {
+apps/api/src/lib/webhookSecurity.ts:7:  if (!signatureHeader) return false;
+apps/api/src/lib/webhookSecurity.ts:8:  const [scheme, signature] = signatureHeader.split('=', 2);
+apps/api/src/lib/webhookSecurity.ts:9:  if (!scheme || !signature || scheme !== 'sha256') return false;

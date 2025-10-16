@@ -1,0 +1,16 @@
+Vercel CLI 44.6.3
+Retrieving project…
+Deploying alexs-projects-a9be258a/clockify-xcfe
+Uploading [--------------------] (0.0B/376B)
+Uploading [=========-----------] (185.0B/376B)
+Uploading [====================] (376.0B/376B)
+Inspect: https://vercel.com/alexs-projects-a9be258a/clockify-xcfe/HPGZcUJZEWCFVc9TiPRqxMkqzEgz [4s]
+Production: https://clockify-xcfe-2tazq31nr-alexs-projects-a9be258a.vercel.app [4s]
+https://clockify-xcfe-2tazq31nr-alexs-projects-a9be258a.vercel.appQueued
+2025-10-16T02:23:45.075Z  Running build in Washington, D.C., USA (East) – iad1
+2025-10-16T02:23:45.076Z  Build machine configuration: 2 cores, 8 GB
+2025-10-16T02:23:45.098Z  Retrieving list of deployment files...
+2025-10-16T02:23:45.631Z  Downloading 659 deployment files...
+2025-10-16T02:23:48.098Z  Restored build cache from previous deployment (5fgBvkRjkpkYmKYRe8JgYtbFbRXK)
+2025-10-16T02:23:48.631Z  Running "vercel build"
+Error: Two or more files have conflicting paths or names. Please make sure path segments and filenames, without their extension, are unique. The path "api/index.js" has conflicts with "api/index.ts".

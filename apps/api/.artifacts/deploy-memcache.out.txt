@@ -1,0 +1,31 @@
+Vercel CLI 44.6.3
+Retrieving project…
+Deploying alexs-projects-a9be258a/clockify-xcfe
+Uploading [--------------------] (0.0B/25.1KB)
+Uploading [======--------------] (7.8KB/25.1KB)
+Uploading [==========----------] (13.3KB/25.1KB)
+Uploading [===============-----] (19.8KB/25.1KB)
+Uploading [====================] (25.1KB/25.1KB)
+Inspect: https://vercel.com/alexs-projects-a9be258a/clockify-xcfe/3k7GjzgLjzKRUkyrqjiGaXwYSs69 [3s]
+Production: https://clockify-xcfe-ls1v4vkrv-alexs-projects-a9be258a.vercel.app [3s]
+https://clockify-xcfe-ls1v4vkrv-alexs-projects-a9be258a.vercel.appQueued
+2025-10-16T02:16:49.107Z  Running build in Washington, D.C., USA (East) – iad1
+2025-10-16T02:16:49.108Z  Build machine configuration: 2 cores, 8 GB
+2025-10-16T02:16:49.127Z  Retrieving list of deployment files...
+2025-10-16T02:16:49.634Z  Downloading 310 deployment files...
+2025-10-16T02:16:54.783Z  Restored build cache from previous deployment (BQM2f1dATevuPQgxYTBqLBh6wTQP)
+2025-10-16T02:16:55.052Z  Running "vercel build"
+2025-10-16T02:16:55.451Z  Vercel CLI 48.2.9
+2025-10-16T02:16:56.089Z  Installing dependencies...
+2025-10-16T02:16:57.096Z  
+2025-10-16T02:16:57.096Z  up to date in 766ms
+2025-10-16T02:16:57.097Z  
+2025-10-16T02:16:57.098Z  23 packages are looking for funding
+2025-10-16T02:16:57.098Z    run `npm fund` for details
+2025-10-16T02:16:57.129Z  Running "npm run build"
+2025-10-16T02:16:57.235Z  
+2025-10-16T02:16:57.236Z  > @xcfe/api@0.1.0 build
+2025-10-16T02:16:57.236Z  > tsc -p tsconfig.build.json
+2025-10-16T02:16:57.236Z  
+2025-10-16T02:17:01.531Z  Build Completed in /vercel/output [5s]
+2025-10-16T02:17:01.626Z  Deploying outputs...

@@ -1,0 +1,33 @@
+Vercel CLI 44.6.3
+Loading scopes…
+Searching for existing projects…
+Linked to alexs-projects-a9be258a/api (created .vercel)
+Deploying alexs-projects-a9be258a/api
+Uploading [--------------------] (0.0B/12KB)
+Uploading [========------------] (5.2KB/12KB)
+Uploading [=============-------] (8.3KB/12KB)
+Uploading [====================] (12.0KB/12KB)
+Inspect: https://vercel.com/alexs-projects-a9be258a/api/Ar9PUBdEmPFeCMzgapJVyHdwX8r1 [3s]
+Production: https://api-i8he34hb8-alexs-projects-a9be258a.vercel.app [3s]
+https://api-i8he34hb8-alexs-projects-a9be258a.vercel.appQueued
+2025-10-16T02:08:09.345Z  Running build in Washington, D.C., USA (East) – iad1
+2025-10-16T02:08:09.345Z  Build machine configuration: 2 cores, 8 GB
+2025-10-16T02:08:09.368Z  Retrieving list of deployment files...
+2025-10-16T02:08:09.484Z  Previous build caches not available
+2025-10-16T02:08:10.338Z  Downloading 306 deployment files...
+2025-10-16T02:08:11.913Z  Running "vercel build"
+2025-10-16T02:08:12.300Z  Vercel CLI 48.2.9
+2025-10-16T02:08:13.526Z  Installing dependencies...
+2025-10-16T02:08:24.812Z  
+2025-10-16T02:08:24.812Z  added 172 packages in 11s
+2025-10-16T02:08:24.813Z  
+2025-10-16T02:08:24.814Z  23 packages are looking for funding
+2025-10-16T02:08:24.814Z    run `npm fund` for details
+2025-10-16T02:08:24.853Z  Running "npm run build"
+2025-10-16T02:08:24.961Z  
+2025-10-16T02:08:24.961Z  > @xcfe/api@0.1.0 build
+2025-10-16T02:08:24.962Z  > tsc -p tsconfig.build.json
+2025-10-16T02:08:24.962Z  
+2025-10-16T02:08:29.408Z  Using TypeScript 5.9.3 (local user-provided)
+2025-10-16T02:08:36.818Z  Build Completed in /vercel/output [23s]
+2025-10-16T02:08:37.043Z  Deploying outputs...

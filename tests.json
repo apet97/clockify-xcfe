@@ -1,0 +1,8 @@
+{
+  "jwt": ["iss","aud","sub","nbf","exp","jti"],
+  "webhooks": ["NEW_TIME_ENTRY","TIME_ENTRY_UPDATED"],
+  "dedupe": ["eventId","jti","ttl>=900s"],
+  "patch": ["single PATCH per entry","diff-only writes"],
+  "reports": ["detailed endpoint only","page<=200"],
+  "ui": ["no localStorage of raw JWT","admins-only settings"]
+}

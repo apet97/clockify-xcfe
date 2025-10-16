@@ -1,0 +1,13 @@
+--- a/apps/api/src/lib/jwt.ts
++++ b/apps/api/src/lib/jwt.ts
+@@ -102,6 +102,10 @@ const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string
+     throw new Error(`Invalid JWT issuer, expected "clockify", got "${claims.iss || ''}"`);
+   }
+ 
++  if (claims.nbf && claims.nbf > Math.floor(Date.now() / 1000)) {
++    throw new Error('JWT not yet valid (nbf claim in future)');
++  }
++
+   if (expectedSub && claims.sub !== expectedSub) {
+     throw new Error(`Invalid JWT subject, expected "${expectedSub}", got "${claims.sub}"`);
+   }

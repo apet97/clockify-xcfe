@@ -1,0 +1,32 @@
+Vercel CLI 44.6.3
+Retrieving project…
+Deploying alexs-projects-a9be258a/api
+Uploading [--------------------] (0.0B/1.6KB)
+Uploading [====================] (1.6KB/1.6KB)
+Inspect: https://vercel.com/alexs-projects-a9be258a/api/6XtDHUGbLKRTYQoKF1LRV394u3Wx [3s]
+Production: https://api-27emivuhc-alexs-projects-a9be258a.vercel.app [3s]
+https://api-27emivuhc-alexs-projects-a9be258a.vercel.appQueued
+2025-10-16T02:09:03.608Z  Running build in Washington, D.C., USA (East) – iad1
+2025-10-16T02:09:03.616Z  Build machine configuration: 2 cores, 8 GB
+2025-10-16T02:09:03.639Z  Retrieving list of deployment files...
+2025-10-16T02:09:03.721Z  Previous build caches not available
+2025-10-16T02:09:04.143Z  Downloading 307 deployment files...
+2025-10-16T02:09:05.461Z  Running "vercel build"
+2025-10-16T02:09:05.850Z  Vercel CLI 48.2.9
+2025-10-16T02:09:06.583Z  Installing dependencies...
+2025-10-16T02:09:18.531Z  
+2025-10-16T02:09:18.532Z  added 172 packages in 12s
+2025-10-16T02:09:18.532Z  
+2025-10-16T02:09:18.532Z  23 packages are looking for funding
+2025-10-16T02:09:18.532Z    run `npm fund` for details
+2025-10-16T02:09:18.575Z  Running "npm run build"
+2025-10-16T02:09:18.684Z  
+2025-10-16T02:09:18.685Z  > @xcfe/api@0.1.0 build
+2025-10-16T02:09:18.685Z  > tsc -p tsconfig.build.json
+2025-10-16T02:09:18.686Z  
+2025-10-16T02:09:23.353Z  Using TypeScript 5.9.3 (local user-provided)
+2025-10-16T02:09:30.897Z  Build Completed in /vercel/output [24s]
+2025-10-16T02:09:31.125Z  Deploying outputs...
+2025-10-16T02:09:37.631Z  Deployment completed
+2025-10-16T02:09:38.451Z  Creating build cache...
+2025-10-16T02:09:38.847Z  Skipping cache upload because no files were prepared

@@ -4,15 +4,16 @@ import { CONFIG } from '../config/index.js';
 /**
  * Manifest Controller - Clockify Add-on Schema 1.3
  *
- * Serves the add-on manifest per Clockify Marketplace standards.
- * Updated to match the official schema structure from infra/manifest.json
+ * Serves the add-on manifest per official Clockify JSON Schema 1.3.
+ * Structure validated against:
+ * newyork/addon-java-sdk-main/annotation-processor/src/main/resources/clockify-manifests/1.3.json
  *
- * Key changes from previous version:
- * - Changed subscriptionPlan (was minimalSubscriptionPlan)
- * - Components array with proper type: "sidebar.page" (was "sidebar")
- * - Settings with STRUCTURED type and properties schema
- * - Lifecycle as object with method+path (was array)
- * - Webhooks with proper event names and webhookType
+ * Key requirements:
+ * - minimalSubscriptionPlan (REQUIRED, not subscriptionPlan)
+ * - lifecycle: array with type+path (not object)
+ * - webhooks: array with event+path (no webhookType field)
+ * - components.type: "sidebar" (not "sidebar.page")
+ * - settings: object with "tabs" array OR string (self-hosted path)
  */
 export const getManifest: RequestHandler = (_req, res) => {
   const manifest = {
@@ -22,7 +23,7 @@ export const getManifest: RequestHandler = (_req, res) => {
     baseUrl: CONFIG.BASE_URL,
     description:
       'Automated formula evaluation and validation for Clockify custom fields. Computes amounts, categorizes entries, validates data integrity, and maintains consistent custom field values across your workspace using mathematical formulas, conditional logic, and overtime rules.',
-    subscriptionPlan: CONFIG.MIN_PLAN,
+    minimalSubscriptionPlan: CONFIG.MIN_PLAN,
     scopes: [
       'TIME_ENTRY_READ',
       'TIME_ENTRY_WRITE',
@@ -34,80 +35,86 @@ export const getManifest: RequestHandler = (_req, res) => {
     ],
     components: [
       {
-        type: 'sidebar.page',
+        type: 'sidebar',
         label: 'Field Expander',
         path: '/ui/sidebar',
         accessLevel: 'ADMINS'
       }
     ],
     settings: {
-      type: 'STRUCTURED',
-      path: '/lifecycle/settings-updated',
-      properties: [
+      tabs: [
         {
-          key: 'strict_mode',
-          label: 'Strict Validation Mode',
-          type: 'CHECKBOX',
-          value: false,
-          required: false,
-          accessLevel: 'ADMINS',
-          hint: 'Enable strict validation for all formula evaluations. When enabled, formulas with errors will prevent time entry updates.'
-        },
-        {
-          key: 'reference_months',
-          label: 'OT Reference Period (months)',
-          type: 'NUMBER',
-          value: 6,
-          required: false,
-          accessLevel: 'ADMINS',
-          hint: 'Number of historical months to consider for overtime calculations. Valid range: 1-12 months. Default: 6.'
-        },
-        {
-          key: 'region',
-          label: 'Clockify Region Override',
-          type: 'SELECT',
-          required: false,
-          accessLevel: 'ADMINS',
-          options: [
-            { value: 'auto', label: 'Auto-detect from JWT' },
-            { value: 'global', label: 'Global (api.clockify.me)' },
-            { value: 'euc1', label: 'Europe - Germany (euc1)' },
-            { value: 'use2', label: 'USA (use2)' },
-            { value: 'euw2', label: 'UK (euw2)' },
-            { value: 'apse2', label: 'Australia (apse2)' }
-          ],
-          hint: 'Override automatic region detection. Recommended: Leave on Auto-detect to use workspace configured region.'
+          id: 'general',
+          name: 'General Settings',
+          settings: [
+            {
+              id: 'strict_mode',
+              name: 'Strict Validation Mode',
+              type: 'CHECKBOX',
+              value: false,
+              required: false,
+              accessLevel: 'ADMINS',
+              description:
+                'Enable strict validation for all formula evaluations. When enabled, formulas with errors will prevent time entry updates.'
+            },
+            {
+              id: 'reference_months',
+              name: 'OT Reference Period (months)',
+              type: 'NUMBER',
+              value: 6,
+              required: false,
+              accessLevel: 'ADMINS',
+              description:
+                'Number of historical months to consider for overtime calculations. Valid range: 1-12 months. Default: 6.'
+            },
+            {
+              id: 'region',
+              name: 'Clockify Region Override',
+              type: 'DROPDOWN_SINGLE',
+              value: 'auto',
+              required: false,
+              accessLevel: 'ADMINS',
+              description:
+                'Override automatic region detection. Recommended: Leave on Auto-detect to use workspace configured region.',
+              allowedValues: [
+                { key: 'auto', value: 'Auto-detect from JWT' },
+                { key: 'global', value: 'Global (api.clockify.me)' },
+                { key: 'euc1', value: 'Europe - Germany (euc1)' },
+                { key: 'use2', value: 'USA (use2)' },
+                { key: 'euw2', value: 'UK (euw2)' },
+                { key: 'apse2', value: 'Australia (apse2)' }
+              ]
+            }
+          ]
         }
       ]
     },
-    lifecycle: {
-      installed: {
-        method: 'POST',
+    lifecycle: [
+      {
+        type: 'INSTALLED',
         path: '/lifecycle/installed'
       },
-      statusChanged: {
-        method: 'POST',
+      {
+        type: 'STATUS_CHANGED',
         path: '/lifecycle/status-changed'
       },
-      settingsUpdated: {
-        method: 'POST',
+      {
+        type: 'SETTINGS_UPDATED',
         path: '/lifecycle/settings-updated'
       },
-      deleted: {
-        method: 'POST',
+      {
+        type: 'DELETED',
         path: '/lifecycle/deleted'
       }
-    },
+    ],
     webhooks: [
       {
         event: 'TIME_ENTRY_UPDATED',
-        path: '/v1/webhooks/clockify',
-        webhookType: 'ADDON'
+        path: '/v1/webhooks/clockify'
       },
       {
-        event: 'TIME_ENTRY_CREATED',
-        path: '/v1/webhooks/clockify',
-        webhookType: 'ADDON'
+        event: 'NEW_TIME_ENTRY',
+        path: '/v1/webhooks/clockify'
       }
     ]
   };

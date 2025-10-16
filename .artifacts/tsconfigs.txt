@@ -1,0 +1,8 @@
+./tsconfig.base.json
+./starter/tsconfig.json
+./tsconfig.json
+./apps/api/tsconfig.build.json
+./apps/api/tsconfig.json
+./apps/admin-ui/tsconfig.node.json
+./apps/admin-ui/tsconfig.json
+./starter-minimal/tsconfig.json
