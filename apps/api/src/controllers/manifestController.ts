@@ -16,6 +16,51 @@ import { CONFIG } from '../config/index.js';
  * - settings: object with "tabs" array OR string (self-hosted path)
  */
 export const getManifest: RequestHandler = (_req, res) => {
+  // Structured settings must be provided as a JSON STRING that the
+  // Clockify Marketplace parses. The expected shape is:
+  // { tabs: [{ id, name, description?, groups: [{ id, name, fields: [{ id, type, label, description?, required?, defaultValue? }, ...] }] }] }
+  const structuredSettings = {
+    tabs: [
+      {
+        id: 'general',
+        name: 'General Settings',
+        description: 'Configure validation and runtime behavior for formula evaluation.',
+        groups: [
+          {
+            id: 'runtime',
+            name: 'Runtime',
+            fields: [
+              {
+                id: 'strict_mode',
+                type: 'CHECKBOX',
+                label: 'Strict validation mode',
+                description: 'Prevent updates when formulas produce errors.',
+                required: false,
+                defaultValue: 'false'
+              },
+              {
+                id: 'evaluation_delay_seconds',
+                type: 'TXT',
+                label: 'Evaluation delay (seconds)',
+                description: 'Optional delay before formulas execute to allow Clockify to settle.',
+                required: false,
+                defaultValue: '5'
+              },
+              {
+                id: 'region',
+                type: 'TXT',
+                label: 'Clockify region override',
+                description: 'Optional region code (euc1/use2/euw2/apse2). Leave empty to auto-detect.',
+                required: false,
+                defaultValue: ''
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
   const manifest = {
     schemaVersion: '1.3',
     key: CONFIG.ADDON_KEY,
@@ -41,54 +86,8 @@ export const getManifest: RequestHandler = (_req, res) => {
         accessLevel: 'ADMINS'
       }
     ],
-    settings: {
-      tabs: [
-        {
-          id: 'general',
-          name: 'General Settings',
-          settings: [
-            {
-              id: 'strict_mode',
-              name: 'Strict Validation Mode',
-              type: 'CHECKBOX',
-              value: false,
-              required: false,
-              accessLevel: 'ADMINS',
-              description:
-                'Enable strict validation for all formula evaluations. When enabled, formulas with errors will prevent time entry updates.'
-            },
-            {
-              id: 'reference_months',
-              name: 'OT Reference Period (months)',
-              type: 'NUMBER',
-              value: 6,
-              required: false,
-              accessLevel: 'ADMINS',
-              description:
-                'Number of historical months to consider for overtime calculations. Valid range: 1-12 months. Default: 6.'
-            },
-            {
-              id: 'region',
-              name: 'Clockify Region Override',
-              type: 'DROPDOWN_SINGLE',
-              value: 'auto',
-              required: false,
-              accessLevel: 'ADMINS',
-              description:
-                'Override automatic region detection. Recommended: Leave on Auto-detect to use workspace configured region.',
-              allowedValues: [
-                { key: 'auto', value: 'Auto-detect from JWT' },
-                { key: 'global', value: 'Global (api.clockify.me)' },
-                { key: 'euc1', value: 'Europe - Germany (euc1)' },
-                { key: 'use2', value: 'USA (use2)' },
-                { key: 'euw2', value: 'UK (euw2)' },
-                { key: 'apse2', value: 'Australia (apse2)' }
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    // Important: provide settings as a JSON string
+    settings: JSON.stringify(structuredSettings),
     lifecycle: [
       {
         type: 'INSTALLED',
