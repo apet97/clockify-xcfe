@@ -83,8 +83,92 @@ If no region is supplied the API uses the generic `CLOCKIFY_BASE_URL` and automa
    - Magic-link auth issues short-lived HS256 tokens (`POST /v1/auth/magic-link`).
    - SPA endpoints: `/v1/formulas`, `/v1/dictionaries`, `/v1/backfill`, `/v1/runs`, `/v1/sites/health`, `/v1/settings`, `/v1/proxy/time-entries`.
 
+## Settings Proxy & Add-on Token Authentication
+
+Settings are **stored and managed by Clockify**, not in your database. The API proxies requests to Clockify's Settings API using the `auth_token` from the iframe URL.
+
+### How it works
+
+1. **Iframe authentication**: Clockify passes `?auth_token=...` in the iframe URL
+2. **JWT verification**: Token is verified with Clockify's RSA public key and claims:
+   - `iss` must equal `clockify`
+   - `type` must equal `addon`
+   - `sub` must match your `ADDON_KEY`
+3. **Context extraction**: Token contains `backendUrl`, `workspaceId`, and `user`
+4. **Proxy to Clockify**: All settings requests use `X-Addon-Token` header
+
+### API Endpoints
+
+**GET /v1/settings**
+```bash
+# Direct call (if you have the token from iframe)
+curl "$OUR_BASE/v1/settings?auth_token=$TOKEN"
+
+# What happens internally:
+# → Verifies token signature and claims
+# → Extracts backendUrl and workspaceId from JWT
+# → Proxies to: ${backendUrl}/addon/workspaces/${workspaceId}/settings
+# → Forwards Clockify's response
+```
+
+**POST /v1/settings**
+```bash
+# Update settings (proxied to Clockify)
+curl -X POST "$OUR_BASE/v1/settings?auth_token=$TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"formulas": [...], "strict_mode": true}'
+
+# What happens internally:
+# → Verifies token
+# → Proxies to: ${backendUrl}/addon/workspaces/${workspaceId}/settings
+# → Returns 204 No Content or Clockify's response
+```
+
+**GET /v1/proxy/time-entries**
+```bash
+# Fetch time entries for the authenticated user
+curl "$OUR_BASE/v1/proxy/time-entries?auth_token=$TOKEN&start=2024-01-01T00:00:00Z&end=2024-01-31T23:59:59Z"
+
+# What happens internally:
+# → Verifies token
+# → Extracts backendUrl, workspaceId, userId from JWT
+# → Proxies to: ${backendUrl}/v1/workspaces/${workspaceId}/user/${userId}/time-entries
+# → Returns Clockify's time entries array
+```
+
+### Testing Add-on Tokens
+
+Use the verification script to decode and inspect JWT tokens:
+
+```bash
+# Decode a token (no verification, just inspection)
+pnpm dev:verify "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+# Example output:
+# ✓ Successfully decoded JWT token
+#
+# Issuer (iss): clockify
+# Type: addon
+# Subject (sub): xcfe-custom-field-expander
+#
+# Backend URL: https://developer-api.clockify.me/api
+# Workspace ID: 68adfddad138cb5f24c63b22
+#
+# User:
+#   ID: 507f1f77bcf86cd799439011
+#   Email: user@example.com
+#   Name: John Doe
+```
+
+### CORS & Security
+
+- All proxy endpoints check `Origin` header
+- Allowed origins: `ADMIN_UI_ORIGIN` + Clockify domains (`*.clockify.me`)
+- Tokens expire (check `exp` claim) - iframe provides fresh tokens
+- Token verification uses RSA256 signature with Clockify's public key
+
 ## Audit Trail
-The `runs` table now stores `workspace_id`, `event`, `corrrelation_id`, `request_id`, `diff`, and fingerprints (for webhook idempotency). The Admin UI’s Audit log exposes these fields, and API consumers can page via `GET /v1/runs?limit=...`.
+The `runs` table now stores `workspace_id`, `event`, `corrrelation_id`, `request_id`, `diff`, and fingerprints (for webhook idempotency). The Admin UI's Audit log exposes these fields, and API consumers can page via `GET /v1/runs?limit=...`.
 
 ## Deployment Notes
 - Update `infra/manifest.json` before submitting to Clockify — populate production iframe and webhook URLs.
