@@ -30,4 +30,6 @@ if (!process.env.VERCEL && (runningDirectly || !isProduction)) {
   startServer();
 }
 
+// Export for Vercel serverless (both default and named)
 export default app;
+export const handler = app;

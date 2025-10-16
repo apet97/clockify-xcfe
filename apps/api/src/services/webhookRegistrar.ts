@@ -2,7 +2,7 @@ import { CONFIG } from '../config/index.js';
 import { clockifyClient, RateLimitError } from '../lib/clockifyClient.js';
 import { logger } from '../lib/logger.js';
 
-const EVENTS = ['NEW_TIME_ENTRY', 'NEW_TIMER_STARTED', 'TIME_ENTRY_UPDATED', 'TIME_ENTRY_DELETED', 'BILLABLE_RATE_UPDATED'];
+const EVENTS = ['NEW_TIME_ENTRY', 'NEW_TIMER_STARTED', 'TIME_ENTRY_UPDATED', 'TIME_ENTRY_DELETED'];
 
 interface WebhookInfo {
   id: string;

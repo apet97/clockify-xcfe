@@ -3,7 +3,9 @@ import { CONFIG } from '../config/index.js';
 
 export const verifyClockifySignature = (rawBody: string, signatureHeader?: string | null): boolean => {
   if (CONFIG.DEV_ALLOW_UNSIGNED && CONFIG.NODE_ENV === 'development') return true;
-  if (!CONFIG.CLOCKIFY_WEBHOOK_SECRET) return true;
+  if (!CONFIG.CLOCKIFY_WEBHOOK_SECRET) {
+    throw new Error('CLOCKIFY_WEBHOOK_SECRET is required for webhook signature verification');
+  }
   if (!signatureHeader) return false;
   const [scheme, signature] = signatureHeader.split('=', 2);
   if (!scheme || !signature || scheme !== 'sha256') return false;

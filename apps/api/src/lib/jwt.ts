@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { SignJWT, jwtVerify, importSPKI } from 'jose';
 import { CONFIG } from '../config/index.js';
+import { seenOnce } from './kv.js';
 
 const deriveSecret = () => createHash('sha256').update(CONFIG.ENCRYPTION_KEY).digest();
 const secretKey = deriveSecret();
@@ -91,13 +92,21 @@ const getClockifyPublicKey = async () => {
   return clockifyPublicKey;
 };
 
-const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string, requireBackendUrl = true) => {
+const validateClockifyClaims = async (claims: ClockifyJwtClaims, expectedSub?: string, requireBackendUrl = true) => {
   if (claims.type !== 'addon') {
     throw new Error('Invalid JWT type, expected "addon"');
   }
 
+  if ((claims as any).aud && (claims as any).aud !== CONFIG.ADDON_KEY) {
+    throw new Error(`Invalid JWT audience, expected "${CONFIG.ADDON_KEY}", got "${(claims as any).aud}"`);
+  }
+
   if (claims.iss !== 'clockify') {
     throw new Error(`Invalid JWT issuer, expected "clockify", got "${claims.iss || ''}"`);
+  }
+
+  if ((claims as any).nbf && (claims as any).nbf > Math.floor(Date.now() / 1000)) {
+    throw new Error('JWT not yet valid (nbf claim in future)');
   }
 
   if (expectedSub && claims.sub !== expectedSub) {
@@ -111,6 +120,19 @@ const validateClockifyClaims = (claims: ClockifyJwtClaims, expectedSub?: string,
   if (requireBackendUrl && !claims.backendUrl) {
     throw new Error('Missing required JWT claim: backendUrl');
   }
+
+  // JWT Replay Protection (jti claim)
+  // Check if this JWT ID has been seen before within its validity period
+  const jti = (claims as any).jti;
+  if (jti) {
+    const ttlSeconds = claims.exp - Math.floor(Date.now() / 1000);
+    if (ttlSeconds > 0) {
+      const replayed = await seenOnce(`jti:${jti}`, ttlSeconds);
+      if (replayed) {
+        throw new Error('JWT replay detected: this token has already been used');
+      }
+    }
+  }
 };
 
 export const verifyClockifyJwt = async (token: string, expectedSub?: string, requireBackendUrl = true): Promise<ClockifyJwtClaims> => {
@@ -119,7 +141,7 @@ export const verifyClockifyJwt = async (token: string, expectedSub?: string, req
   try {
     if (allowUnsigned && !CONFIG.RSA_PUBLIC_KEY_PEM) {
       const claims = decodeClockifyClaims(token);
-      validateClockifyClaims(claims, expectedSub, requireBackendUrl);
+      await validateClockifyClaims(claims, expectedSub, requireBackendUrl);
       return claims;
     }
 
@@ -131,7 +153,7 @@ export const verifyClockifyJwt = async (token: string, expectedSub?: string, req
     });
 
     const claims = payload as ClockifyJwtClaims;
-    validateClockifyClaims(claims, expectedSub, requireBackendUrl);
+    await validateClockifyClaims(claims, expectedSub, requireBackendUrl);
     return claims;
   } catch (error) {
     // Best-effort decode: allow developer env tokens (developer.clockify.me) even if signature fails
@@ -141,7 +163,7 @@ export const verifyClockifyJwt = async (token: string, expectedSub?: string, req
       const host = (() => { try { return new URL(backend).host; } catch { return ''; } })();
       const isDevHost = /(^|\.)developer\.clockify\.me$/.test(host);
       if (isDevHost || allowUnsigned) {
-        validateClockifyClaims(claims, expectedSub, requireBackendUrl);
+        await validateClockifyClaims(claims, expectedSub, requireBackendUrl);
         return claims;
       }
     } catch {}

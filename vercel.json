@@ -1,22 +1,9 @@
 {
-  "version": 2,
   "buildCommand": "pnpm install && pnpm run build",
   "env": {
     "PNPM_NODE_LINKER": "hoisted"
   },
-  "builds": [
-    {
-      "src": "apps/api/src/server.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": "apps/**/public/**,apps/**/dist/**"
-      }
-    }
-  ],
-  "routes": [
-    { "src": "/manifest.json", "dest": "/apps/api/src/server.ts" },
-    { "src": "/api/(.*)", "dest": "/apps/api/src/server.ts" },
-    { "src": "/ui/(.*)", "dest": "/apps/api/src/server.ts" },
-    { "src": "/(.*)", "dest": "/apps/api/src/server.ts" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
   ]
 }

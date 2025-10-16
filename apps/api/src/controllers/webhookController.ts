@@ -8,30 +8,27 @@ import { FormulaEngine } from '../lib/formulaEngine.js';
 import { computeOtSummary } from '../lib/otRules.js';
 import { CONFIG } from '../config/index.js';
 import { getBackendUrlFromMemory, getInstallationTokenFromMemory } from '../services/installMemory.js';
-import { clockifyTimeEntrySchema, ClockifyWebhookEvent, billableRateUpdatedSchema } from '../types/clockify.js';
+import { clockifyTimeEntrySchema, ClockifyWebhookEvent } from '../types/clockify.js';
 import { recordRun } from '../services/runService.js';
 import { logger } from '../lib/logger.js';
+import { seenOnce } from '../lib/kv.js';
 
 // Rate-limited logging for workspace mismatches (once per minute)
 const workspaceMismatchLog = new Map<string, number>();
 
-const PATCH_FINGERPRINT_TTL_MS = 5 * 60 * 1000;
-const patchFingerprintCache = new Map<string, { fingerprint: string; timestamp: number }>();
-const buildFingerprintKey = (workspaceId: string, entryId: string) => `${workspaceId}:${entryId}`;
+const PATCH_FINGERPRINT_TTL_SEC = 30 * 60; // 30 minutes (persistent across serverless restarts)
+const buildFingerprintKey = (workspaceId: string, entryId: string, fingerprint: string) =>
+  `wh:fp:${workspaceId}:${entryId}:${fingerprint}`;
 
-const shouldSkipFingerprint = (key: string, fingerprint: string) => {
-  const record = patchFingerprintCache.get(key);
-  if (!record) return false;
-  const now = Date.now();
-  if (now - record.timestamp > PATCH_FINGERPRINT_TTL_MS) {
-    patchFingerprintCache.delete(key);
-    return false;
-  }
-  return record.fingerprint === fingerprint;
-};
-
-const rememberFingerprint = (key: string, fingerprint: string) => {
-  patchFingerprintCache.set(key, { fingerprint, timestamp: Date.now() });
+/**
+ * Check if a fingerprint has been seen before for this workspace+entry combination
+ * Uses KV for persistent storage across serverless function restarts
+ * @returns true if fingerprint should be skipped (already processed), false if should proceed
+ */
+const shouldSkipFingerprint = async (workspaceId: string, entryId: string, fingerprint: string): Promise<boolean> => {
+  const key = buildFingerprintKey(workspaceId, entryId, fingerprint);
+  // seenOnce returns true if key already exists (seen before), false if first time
+  return await seenOnce(key, PATCH_FINGERPRINT_TTL_SEC);
 };
 
 const hashCustomFieldValues = (values: { customFieldId: string; value: unknown }[] = []) => {
@@ -96,26 +93,6 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
         diff: { reason: 'Time entry deleted event' }
       });
       return res.status(200).json({ ok: true });
-    }
-
-    if (event === 'BILLABLE_RATE_UPDATED') {
-      const parsed = billableRateUpdatedSchema.safeParse(req.body);
-      if (!parsed.success) {
-        logger.warn({ err: parsed.error }, 'Unable to parse BILLABLE_RATE_UPDATED payload');
-        return res.status(200).json({ ok: true });
-      }
-      // For now, record the rate update and return. Future enhancement: enqueue backfill.
-      await recordRun({
-        workspaceId: parsed.data.workspaceId ?? CONFIG.WORKSPACE_ID,
-        entryId: `rate-${parsed.data.modifiedEntity.userId}`,
-        userId: parsed.data.modifiedEntity.userId,
-        status: 'skipped',
-        ms: 0,
-        event,
-        correlationId,
-        diff: { note: 'Rate change event captured', payload: parsed.data }
-      });
-      return res.status(200).json({ ok: true, accepted: true });
     }
 
     const payload = extractTimeEntryPayload(req.body);
@@ -191,7 +168,6 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       after: update.value
     }));
     const fingerprint = createHash('sha256').update(JSON.stringify(diff)).digest('hex');
-    const fingerprintKey = buildFingerprintKey(workspaceId, liveEntry.id);
 
     const latest = await clockifyClient.getTimeEntry(workspaceId, liveEntry.id, correlationId, authToken, baseOverride);
     const latestHash = hashCustomFieldValues((latest.customFieldValues ?? []).map(cf => ({ 
@@ -212,7 +188,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       return res.status(202).json({ ok: true, changes: 0, diagnostics, warnings, retried: true });
     }
 
-    if (shouldSkipFingerprint(fingerprintKey, fingerprint)) {
+    if (await shouldSkipFingerprint(workspaceId, liveEntry.id, fingerprint)) {
       await recordRun({
         workspaceId,
         entryId: liveEntry.id,
@@ -221,7 +197,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
         ms: Math.round(performance.now() - start),
         event,
         correlationId,
-        diff: { reason: 'Duplicate fingerprint', warnings, ot: otSummary, fingerprint }
+        diff: { reason: 'Duplicate fingerprint (KV cache)', warnings, ot: otSummary, fingerprint }
       });
       return res.status(200).json({ ok: true, changes: 0, diagnostics, warnings, duplicate: true });
     }
@@ -235,7 +211,7 @@ export const clockifyWebhookHandler: RequestHandler = async (req, res, next) => 
       { correlationId, authToken, baseUrlOverride: baseOverride }
     );
     const duration = Math.round(performance.now() - start);
-    rememberFingerprint(fingerprintKey, fingerprint);
+    // Fingerprint already stored in KV by shouldSkipFingerprint check
     await recordRun({
       workspaceId,
       entryId: liveEntry.id,

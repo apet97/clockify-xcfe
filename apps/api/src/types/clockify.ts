@@ -79,8 +79,7 @@ export const webhookEventTypeSchema = z.enum([
   'NEW_TIME_ENTRY',
   'NEW_TIMER_STARTED',
   'TIME_ENTRY_UPDATED',
-  'TIME_ENTRY_DELETED',
-  'BILLABLE_RATE_UPDATED'
+  'TIME_ENTRY_DELETED'
 ]);
 
 export const clockifyWebhookEnvelopeSchema = z.object({
@@ -89,26 +88,6 @@ export const clockifyWebhookEnvelopeSchema = z.object({
   payload: z.unknown().optional()
 });
 
-export const billableRateUpdatedSchema = z.object({
-  workspaceId: clockifyIdSchema,
-  rateChangeSource: z.string(),
-  modifiedEntity: z.object({
-    userId: clockifyIdSchema,
-    hourlyRate: z.object({ amount: z.number().optional() }).partial(),
-    costRate: z.object({ amount: z.number().optional() }).partial(),
-    targetId: clockifyIdSchema.optional(),
-    membershipType: z.string().optional(),
-    membershipStatus: z.string().optional()
-  }),
-  currency: z.object({
-    id: clockifyIdSchema.optional(),
-    code: z.string().optional()
-  }),
-  amount: z.number().optional(),
-  since: z.string().optional()
-});
-
 export type ClockifyTimeEntry = z.infer<typeof clockifyTimeEntrySchema>;
 export type ClockifyCustomFieldValue = z.infer<typeof customFieldValueSchema>;
 export type ClockifyWebhookEvent = z.infer<typeof webhookEventTypeSchema>;
-export type ClockifyRateUpdate = z.infer<typeof billableRateUpdatedSchema>;

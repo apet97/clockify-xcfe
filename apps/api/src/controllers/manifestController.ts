@@ -41,8 +41,7 @@ export const getManifest: RequestHandler = (_req, res) => {
       { event: 'NEW_TIME_ENTRY', path: '/v1/webhooks/clockify' },
       { event: 'TIME_ENTRY_UPDATED', path: '/v1/webhooks/clockify' },
       { event: 'TIME_ENTRY_DELETED', path: '/v1/webhooks/clockify' },
-      { event: 'NEW_TIMER_STARTED', path: '/v1/webhooks/clockify' },
-      { event: 'BILLABLE_RATE_UPDATED', path: '/v1/webhooks/clockify' }
+      { event: 'NEW_TIMER_STARTED', path: '/v1/webhooks/clockify' }
     ]
   };
 

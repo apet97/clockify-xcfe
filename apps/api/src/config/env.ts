@@ -31,6 +31,17 @@ const encryptionKeySchema = z
   .min(32, 'ENCRYPTION_KEY must be at least 32 characters')
   .describe('Used to encrypt stored secrets and sign JWTs');
 
+// Helper to properly coerce string boolean values
+const booleanCoercion = z.preprocess((val) => {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'string') {
+    const lower = val.toLowerCase().trim();
+    if (lower === 'true' || lower === '1') return true;
+    if (lower === 'false' || lower === '0' || lower === '') return false;
+  }
+  return false;
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(8080),
@@ -78,12 +89,16 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().min(1).default('xcfe'),
   JWT_TTL_MINUTES: z.coerce.number().int().positive().default(15),
   CLOCKIFY_WEBHOOK_SECRET: z.string().min(1).optional(),
-  DEV_ALLOW_UNSIGNED: z.coerce.boolean().default(false),
-  WEBHOOK_RECONCILE: z.coerce.boolean().default(false),
+  DEV_ALLOW_UNSIGNED: booleanCoercion.default(false),
+  WEBHOOK_RECONCILE: booleanCoercion.default(false),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   RATE_LIMIT_RPS: z.coerce.number().int().positive().default(50),
   RATE_LIMIT_MAX_BACKOFF_MS: z.coerce.number().int().positive().default(5000),
-  SKIP_DATABASE_CHECKS: z.coerce.boolean().default(false)
+  SKIP_DATABASE_CHECKS: booleanCoercion.default(false),
+  // Vercel KV (for JWT replay cache and webhook dedupe)
+  KV_REST_API_URL: z.string().url().optional().or(z.literal('')),
+  KV_REST_API_TOKEN: z.string().optional().or(z.literal('')),
+  KV_URL: z.string().url().optional().or(z.literal(''))
 }).superRefine((env, ctx) => {
   if (!env.RSA_PUBLIC_KEY_PEM && !env.DEV_ALLOW_UNSIGNED) {
     ctx.addIssue({
@@ -126,6 +141,16 @@ if (!parsed.success) {
 }
 
 const env = parsed.data;
+
+// CRITICAL: Prevent DEV_ALLOW_UNSIGNED in production
+if (env.NODE_ENV === 'production' && env.DEV_ALLOW_UNSIGNED) {
+  throw new Error('SECURITY ERROR: DEV_ALLOW_UNSIGNED must not be enabled in production environment');
+}
+
+// Note: Using in-memory cache for MVP. For production, replace with Upstash Redis:
+// - Create Upstash database at upstash.com
+// - Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN env vars
+// - Update apps/api/src/lib/kv.ts to use @upstash/redis client
 
 export type Env = typeof env;
 
