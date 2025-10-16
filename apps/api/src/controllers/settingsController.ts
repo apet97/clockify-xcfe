@@ -52,6 +52,13 @@ const isAllowedOrigin = (origin: string | undefined): boolean => {
 
   const allAllowed = [...allowedOrigins, ...clockifyDomains];
 
+  // Always allow our own BASE_URL origin
+  try {
+    const baseHost = new URL(CONFIG.BASE_URL).host;
+    const originHost = new URL(origin).host;
+    if (originHost === baseHost) return true;
+  } catch {}
+
   return allAllowed.some(allowed => origin === allowed || origin.endsWith(`.${allowed.replace('https://', '')}`));
 };
 
