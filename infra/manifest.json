@@ -22,77 +22,33 @@
       "accessLevel": "ADMINS"
     }
   ],
-  "settings": {
-    "tabs": [
-      {
-        "id": "general",
-        "name": "General Settings",
-        "settings": [
-          {
-            "id": "strict_mode",
-            "name": "Strict Validation Mode",
-            "type": "CHECKBOX",
-            "value": false,
-            "required": false,
-            "accessLevel": "ADMINS",
-            "description": "Enable strict validation for all formula evaluations. When enabled, formulas with errors will prevent time entry updates."
-          },
-          {
-            "id": "reference_months",
-            "name": "OT Reference Period (months)",
-            "type": "NUMBER",
-            "value": 6,
-            "required": false,
-            "accessLevel": "ADMINS",
-            "description": "Number of historical months to consider for overtime calculations. Valid range: 1-12 months. Default: 6."
-          },
-          {
-            "id": "region",
-            "name": "Clockify Region Override",
-            "type": "DROPDOWN_SINGLE",
-            "value": "auto",
-            "required": false,
-            "accessLevel": "ADMINS",
-            "description": "Override automatic region detection. Recommended: Leave on Auto-detect to use workspace configured region.",
-            "allowedValues": [
-              { "key": "auto", "value": "Auto-detect from JWT" },
-              { "key": "global", "value": "Global (api.clockify.me)" },
-              { "key": "euc1", "value": "Europe - Germany (euc1)" },
-              { "key": "use2", "value": "USA (use2)" },
-              { "key": "euw2", "value": "UK (euw2)" },
-              { "key": "apse2", "value": "Australia (apse2)" }
-            ]
-          }
-        ]
-      }
-    ]
-  },
+  "settings": "{\n  \"tabs\": [\n    {\n      \"id\": \"general\",\n      \"name\": \"General Settings\",\n      \"description\": \"Configure validation and runtime behavior for formula evaluation.\",\n      \"groups\": [\n        {\n          \"id\": \"runtime\",\n          \"name\": \"Runtime\",\n          \"fields\": [\n            {\n              \"id\": \"strict_mode\",\n              \"type\": \"CHECKBOX\",\n              \"label\": \"Strict validation mode\",\n              \"description\": \"Prevent updates when formulas produce errors.\",\n              \"required\": false,\n              \"defaultValue\": \"false\"\n            },\n            {\n              \"id\": \"evaluation_delay_seconds\",\n              \"type\": \"TXT\",\n              \"label\": \"Evaluation delay (seconds)\",\n              \"description\": \"Optional delay before formulas execute to allow Clockify to settle.\",\n              \"required\": false,\n              \"defaultValue\": \"5\"\n            },\n            {\n              \"id\": \"region\",\n              \"type\": \"TXT\",\n              \"label\": \"Clockify region override\",\n              \"description\": \"Optional region code (euc1/use2/euw2/apse2). Leave empty to auto-detect.\",\n              \"required\": false,\n              \"defaultValue\": \"\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
   "lifecycle": [
     {
       "type": "INSTALLED",
-      "path": "/lifecycle/installed"
+      "path": "/api/lifecycle/installed"
     },
     {
       "type": "STATUS_CHANGED",
-      "path": "/lifecycle/status-changed"
+      "path": "/api/lifecycle/status-changed"
     },
     {
       "type": "SETTINGS_UPDATED",
-      "path": "/lifecycle/settings-updated"
+      "path": "/api/lifecycle/settings-updated"
     },
     {
       "type": "DELETED",
-      "path": "/lifecycle/deleted"
+      "path": "/api/lifecycle/uninstalled"
     }
   ],
   "webhooks": [
     {
       "event": "TIME_ENTRY_UPDATED",
-      "path": "/v1/webhooks/clockify"
+      "path": "/api/webhooks/time-entry-updated"
     },
     {
       "event": "NEW_TIME_ENTRY",
-      "path": "/v1/webhooks/clockify"
+      "path": "/api/webhooks/time-entry-created"
     }
   ]
 }

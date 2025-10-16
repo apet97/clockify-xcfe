@@ -91,29 +91,29 @@ export const getManifest: RequestHandler = (_req, res) => {
     lifecycle: [
       {
         type: 'INSTALLED',
-        path: '/lifecycle/installed'
+        path: '/api/lifecycle/installed'
       },
       {
         type: 'STATUS_CHANGED',
-        path: '/lifecycle/status-changed'
+        path: '/api/lifecycle/status-changed'
       },
       {
         type: 'SETTINGS_UPDATED',
-        path: '/lifecycle/settings-updated'
+        path: '/api/lifecycle/settings-updated'
       },
       {
         type: 'DELETED',
-        path: '/lifecycle/deleted'
+        path: '/api/lifecycle/uninstalled'
       }
     ],
     webhooks: [
       {
         event: 'TIME_ENTRY_UPDATED',
-        path: '/v1/webhooks/clockify'
+        path: '/api/webhooks/time-entry-updated'
       },
       {
         event: 'NEW_TIME_ENTRY',
-        path: '/v1/webhooks/clockify'
+        path: '/api/webhooks/time-entry-created'
       }
     ]
   };
