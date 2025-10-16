@@ -4,7 +4,9 @@ import { CONFIG } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 
 type SettingsFieldConfig = {
-  key: string;
+  key?: string;
+  id?: string;
+  type?: string;
   label: string;
   description?: string;
   defaultValue?: string;
@@ -12,6 +14,7 @@ type SettingsFieldConfig = {
 };
 
 type SettingsTabConfig = {
+  id?: string;
   name: string;
   description?: string;
   fields?: SettingsFieldConfig[];
@@ -33,6 +36,90 @@ export const renderSettings: RequestHandler = async (req, res) => {
   );
   const authToken = req.query.auth_token as string;
   const config = req.params.config;
+
+  let settingsConfig: any = null;
+
+  const escapeHtml = (raw: string): string =>
+    raw.replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const renderSettingsField = (field: SettingsFieldConfig): string => {
+    const fieldKey = field.key || field.id;
+    if (!fieldKey) {
+      return '';
+    }
+
+    const normalizedType = (field.type || '').toUpperCase();
+    const isCheckbox = normalizedType === 'CHECKBOX';
+    const isNumeric = fieldKey === 'reference_months';
+    const defaultValueRaw = field.defaultValue ?? '';
+    const label = escapeHtml(field.label || fieldKey);
+    const description = field.description ? `<div class="field-description">${escapeHtml(field.description)}</div>` : '';
+    const requiredAttr = field.required ? 'required' : '';
+    const inputName = escapeHtml(fieldKey);
+
+    if (isCheckbox) {
+      const isChecked = defaultValueRaw === 'true' || defaultValueRaw === '1';
+      return `
+                <div class="field">
+                  <div class="field-label">${label}</div>
+                  ${description}
+                  <label class="field-checkbox">
+                    <input 
+                      type="checkbox"
+                      class="field-input"
+                      name="${inputName}"
+                      ${isChecked ? 'checked' : ''}
+                      ${requiredAttr}
+                      data-field="${inputName}"
+                      data-type="checkbox"
+                      data-default="${isChecked ? 'true' : 'false'}"
+                    />
+                    <span>${label}</span>
+                  </label>
+                </div>`;
+    }
+
+    const inputMode = isNumeric ? 'numeric' : 'text';
+    const dataType = isNumeric ? 'number' : 'text';
+    const defaultValue = escapeHtml(String(defaultValueRaw));
+
+    return `
+                <div class="field">
+                  <div class="field-label">${label}</div>
+                  ${description}
+                  <input 
+                    type="text" 
+                    class="field-input" 
+                    name="${inputName}" 
+                    value="${defaultValue}"
+                    ${requiredAttr}
+                    placeholder="${label}"
+                    inputmode="${inputMode}"
+                    data-field="${inputName}"
+                    data-type="${dataType}"
+                    data-default="${defaultValue}"
+                  />
+                </div>`;
+  };
+
+  const renderSettingsTab = (tab: SettingsTabConfig, index: number): string => {
+    const title = escapeHtml(tab.name || `Tab ${index + 1}`);
+    const description = tab.description ? `<div class="tab-description">${escapeHtml(tab.description)}</div>` : '';
+    const fieldsMarkup = Array.isArray(tab.fields) && tab.fields.length > 0
+      ? tab.fields.map(renderSettingsField).filter(Boolean).join('')
+      : '<div class="field"><div class="field-label">No configuration fields are currently available.</div></div>';
+
+    return `
+            <div class="tab">
+              <div class="tab-header">${title}</div>
+              ${description}
+              ${fieldsMarkup}
+            </div>`;
+  };
 
   if (!authToken) {
     return res.status(200).send(`
@@ -56,7 +143,6 @@ export const renderSettings: RequestHandler = async (req, res) => {
     `);
   }
 
-  let settingsConfig = null;
   if (config) {
     try {
       // Handle double-encoded config (e.g., %257B -> %7B -> {)
@@ -97,6 +183,10 @@ export const renderSettings: RequestHandler = async (req, res) => {
       `);
     }
   }
+
+  const tabsMarkup = settingsConfig && Array.isArray(settingsConfig.tabs)
+    ? settingsConfig.tabs.map((tab: SettingsTabConfig, index: number) => renderSettingsTab(tab, index)).join('')
+    : '<div class="tab"><div class="tab-header">No Settings Available</div><div class="field"><div class="field-label">No configuration fields are currently available.</div></div></div>';
 
   const html = `
     <!DOCTYPE html>
@@ -262,26 +352,7 @@ export const renderSettings: RequestHandler = async (req, res) => {
         </div>
         
         <form id="settingsForm" onsubmit="return false;">
-          ${settingsConfig && settingsConfig.tabs ? settingsConfig.tabs.map((tab: SettingsTabConfig) => `
-            <div class="tab">
-              <div class="tab-header">${tab.name}</div>
-              ${tab.description ? `<div class="tab-description">${tab.description}</div>` : ''}
-              ${tab.fields ? tab.fields.map((field: SettingsFieldConfig) => `
-                <div class="field">
-                  <div class="field-label">${field.label}</div>
-                  ${field.description ? `<div class="field-description">${field.description}</div>` : ''}
-                  <input 
-                    type="text" 
-                    class="field-input" 
-                    name="${field.key}" 
-                    value="${field.defaultValue || ''}"
-                    ${field.required ? 'required' : ''}
-                    placeholder="${field.label}"
-                  />
-                </div>
-              `).join('') : ''}
-            </div>
-          `).join('') : '<div class="tab"><div class="tab-header">No Settings Available</div><div class="field">No configuration fields are currently available.</div></div>'}
+          ${tabsMarkup}
         </form>
         
         <div class="actions">
@@ -297,13 +368,66 @@ export const renderSettings: RequestHandler = async (req, res) => {
         
         async function saveSettings() {
           const form = document.getElementById('settingsForm');
-          const formData = new FormData(form);
+          const inputs = form.querySelectorAll('[data-field]');
           const settings = {};
-          
-          for (const [key, value] of formData.entries()) {
-            settings[key] = value;
+          let hasChanges = false;
+          let validationError = null;
+
+          inputs.forEach(inputEl => {
+            if (validationError) return;
+            const input = inputEl;
+            const key = input.getAttribute('data-field');
+            const type = (input.getAttribute('data-type') || 'text').toLowerCase();
+            if (!key) {
+              return;
+            }
+
+            if (type === 'checkbox') {
+              const isChecked = input.checked;
+              const defaultChecked = (input.getAttribute('data-default') || 'false') === 'true';
+              if (isChecked !== defaultChecked) {
+                settings[key] = isChecked;
+                hasChanges = true;
+              }
+              return;
+            }
+
+            const rawValue = (input.value || '').trim();
+            const defaultValue = (input.getAttribute('data-default') || '').trim();
+
+            if (rawValue === '') {
+              return;
+            }
+
+            if (type === 'number') {
+              const parsed = Number(rawValue);
+              if (!Number.isFinite(parsed)) {
+                validationError = 'Please enter a valid number for ' + key.replace(/_/g, ' ');
+                return;
+              }
+              if (String(parsed) !== defaultValue) {
+                settings[key] = parsed;
+                hasChanges = true;
+              }
+              return;
+            }
+
+            if (rawValue !== defaultValue) {
+              settings[key] = rawValue;
+              hasChanges = true;
+            }
+          });
+
+          if (validationError) {
+            showStatus(validationError, 'error');
+            return;
           }
-          
+
+          if (!hasChanges) {
+            showStatus('No changes to save', 'info');
+            return;
+          }
+
           try {
             showStatus('Saving settings...', 'info');
             const resp = await fetch('/v1/settings?' + new URLSearchParams({ auth_token: authToken }).toString(), {
@@ -324,17 +448,24 @@ export const renderSettings: RequestHandler = async (req, res) => {
             showStatus('Failed to save settings: ' + msg, 'error');
           }
         }
-        
+
         function resetSettings() {
           const form = document.getElementById('settingsForm');
-          const inputs = form.querySelectorAll('input');
-          
-          inputs.forEach(input => {
-            // Reset to default value from the field configuration
+          const inputs = form.querySelectorAll('[data-field]');
+
+          inputs.forEach(inputEl => {
+            const input = inputEl;
+            const type = (input.getAttribute('data-type') || 'text').toLowerCase();
             const defaultValue = input.getAttribute('data-default') || '';
+
+            if (type === 'checkbox') {
+              input.checked = defaultValue === 'true';
+              return;
+            }
+
             input.value = defaultValue;
           });
-          
+
           showStatus('Settings reset to defaults', 'info');
         }
         
