@@ -140,6 +140,8 @@ export function getContextFromToken(token: string): AddonContext {
   const workspaceId = claims.workspaceId ?? '';
   const userId = typeof claims.user === 'string' ? claims.user : claims.user?.id ?? '';
   const workspaceRole = (claims.workspaceRole || (claims as any).workspace_role || (claims as any).role) as string | undefined;
+  const host = (() => { try { return new URL(backendUrl).host; } catch { return ''; } })();
+  const isDevHost = /(^|\.)developer\.clockify\.me$/.test(host);
 
   return {
     token,
@@ -148,7 +150,8 @@ export function getContextFromToken(token: string): AddonContext {
     workspaceId,
     userId,
     user: claims.user,
-    workspaceRole
+    workspaceRole,
+    isDeveloperHost: isDevHost
   };
 }
 
@@ -185,6 +188,7 @@ export interface AddonContext {
   userId: string;
   user: ClockifyAddonClaims['user'];
   workspaceRole?: string;
+  isDeveloperHost: boolean;
 }
 
 export async function resolveAddonContext(req: Request): Promise<AddonContext> {
@@ -195,6 +199,8 @@ export async function resolveAddonContext(req: Request): Promise<AddonContext> {
 
   const claims = await verifyAddonToken(token);
   const backendUrl = (claims.backendUrl || '').replace(/\/$/, '');
+  const host = (() => { try { return new URL(backendUrl).host; } catch { return ''; } })();
+  const isDevHost = /(^|\.)developer\.clockify\.me$/.test(host);
   const workspaceId = claims.workspaceId;
   const userId = typeof claims.user === 'string' ? claims.user : claims.user?.id;
 
@@ -202,10 +208,10 @@ export async function resolveAddonContext(req: Request): Promise<AddonContext> {
     throw new Error('Token missing workspaceId or user id');
   }
 
-  if (!hex24.test(workspaceId) || !hex24.test(userId)) {
+  if (!isDevHost && (!hex24.test(workspaceId) || !hex24.test(userId))) {
     throw new Error('workspaceId/user must be 24 character hex strings');
   }
 
   const workspaceRole = (claims.workspaceRole || (claims as any).workspace_role || (claims as any).role) as string | undefined;
-  return { token, claims, backendUrl, workspaceId, userId, user: claims.user, workspaceRole };
+  return { token, claims, backendUrl, workspaceId, userId, user: claims.user, workspaceRole, isDeveloperHost: isDevHost };
 }
